@@ -44,8 +44,36 @@
   .spark { font-family: ui-monospace, Menlo, monospace; color: var(--cyan); letter-spacing: 1px; margin-left: 10px; }
   .cache { margin-left: 10px; font-size: 12px; }
   .updated { margin-left: auto; color: var(--dim); font-size: 12px; }
-  .theme { font: inherit; font-size: 12px; background: none; border: 1px solid var(--line); color: var(--dim); border-radius: 999px; padding: 2px 9px; cursor: pointer; }
-  .theme:hover { color: var(--fg); }
+  /* The gear stays in the top-right corner however the header wraps. */
+  main { position: relative; }
+  header { padding-right: 44px; }
+  .gear { position: absolute; top: 20px; right: 16px; font-size: 16px; line-height: 1; background: none; border: 1px solid var(--line); color: var(--dim); border-radius: 8px; padding: 4px 7px; cursor: pointer; }
+  .gear:hover { color: var(--fg); }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: flex-start; justify-content: center; padding: 60px 16px; z-index: 10; }
+  .overlay[hidden] { display: none; }
+  .sheet { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; width: 100%; max-width: 380px; padding: 16px 18px; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+  .shead { display: flex; align-items: center; margin-bottom: 8px; }
+  .shead h2 { font-size: 16px; margin: 0; flex: 1; }
+  .sclose { background: none; border: 0; color: var(--dim); font-size: 16px; cursor: pointer; }
+  .sgroup { margin-top: 12px; }
+  .slabel { font-size: 12px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { flex: 1; font: inherit; font-size: 13px; padding: 6px 0; background: none; border: 0; color: var(--dim); cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--blue); color: #fff; }
+  .toggle { display: flex; align-items: center; gap: 10px; padding: 7px 0; cursor: pointer; font-size: 14px; }
+  .toggle + .toggle { border-top: 1px solid var(--line); }
+  .toggle span { flex: 1; }
+  .toggle small { display: block; color: var(--dim); font-size: 12px; }
+  .toggle input { appearance: none; width: 34px; height: 20px; border-radius: 999px; background: var(--track); position: relative; cursor: pointer; transition: background .15s; flex: none; }
+  .toggle input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
+  .toggle input:checked { background: var(--run); }
+  .toggle input:checked::after { transform: translateX(14px); }
+  .snote { margin-top: 12px; font-size: 12px; color: var(--dim); }
+  /* Each display setting that is off hides its pieces. */
+  body.hide-limits #limits, body.hide-stats .stats, body.hide-ctx .ctx, body.hide-growth .growth,
+  body.hide-cache .cache, body.hide-todo .todo, body.hide-now .now, body.hide-convo .convo { display: none !important; }
+  body.hide-ctx.hide-growth.hide-cache .ctxline { display: none; }
   .updated.stale { color: var(--red); }
   .group { background: var(--card); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
   .ghead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 14px 4px; }
@@ -104,6 +132,7 @@
   .ask .note { margin-top: 5px; font-size: 12px; color: var(--dim); white-space: normal; }
   /* Chrome side panel (?panel=1): narrow, so tighter spacing and no page title. */
   .panel main { padding: 10px 10px 40px; }
+  .panel .gear { top: 8px; right: 10px; }
   .panel h1 { display: none; }
   .panel header { gap: 6px; margin-bottom: 10px; }
   .panel .limits { width: 100%; order: 5; }
@@ -112,7 +141,6 @@
   .panel .row { padding: 8px 10px 8px 8px; }
   .panel .meter { width: 70px; }
   .panel .spark, .panel .cache { margin-left: 6px; }
-  .panel .line.dim { display: none; }
   .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
   .toast.show { opacity: 1; }
 </style>
@@ -122,16 +150,32 @@
 <main>
   <header>
     <h1>Claude Session Hub</h1>
-    <button class="theme" id="theme" title="Switch light / dark theme"></button>
     <span class="pill run" id="nRun"></span>
     <span class="pill wait" id="nWait"></span>
     <span class="pill" id="nIdle"></span>
     <span class="limits" id="limits"></span>
     <span class="updated" id="updated"></span>
+    <button class="gear" id="gear" title="Settings" aria-label="Settings">⚙</button>
   </header>
   <div id="groups"></div>
 </main>
 <div class="toast" id="toast"></div>
+<div class="overlay" id="settings" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="shead"><h2 id="settingsTitle">Settings</h2><button class="sclose" id="settingsClose" aria-label="Close">✕</button></div>
+    <div class="sgroup">
+      <div class="slabel">Theme</div>
+      <div class="seg" id="themeSeg">
+        <button data-theme-pick="auto">◐ Auto</button><button data-theme-pick="light">☀︎ Light</button><button data-theme-pick="dark">☾ Dark</button>
+      </div>
+    </div>
+    <div class="sgroup">
+      <div class="slabel">Show on the page</div>
+      <div id="toggles"></div>
+    </div>
+    <div class="snote">Saved in this browser. The Chrome side panel uses the same settings.</div>
+  </div>
+</div>
 <script>
 const POLL_MS = 3000, CONFIRM_MS = 5000
 const RELOAD_HINT = 'Run "Developer: Reload Window" in that VS Code window to load claude-terminal-focus 0.2 or later'
@@ -247,8 +291,8 @@ function rowHtml(r, where) {
   if (r.ctxTokens && r.ctxMax) {
     const k = r.ctxTokens / r.ctxMax
     const c = k >= .8 ? 'var(--red)' : k >= .5 ? 'var(--wait)' : 'var(--run)'
-    html += `<div class="line">${meter(k, c)}<span class="num">ctx ${tokens(r.ctxTokens)}/${tokens(r.ctxMax)} (${Math.round(k * 100)}%)</span>`
-    if (r.ctxGrowth?.length) html += `<span class="spark" title="Context growth per prompt">${spark(r.ctxGrowth)}</span> <span class="num">${signed(r.ctxGrowth.at(-1))}</span>`
+    html += `<div class="line ctxline"><span class="ctx">${meter(k, c)}<span class="num">ctx ${tokens(r.ctxTokens)}/${tokens(r.ctxMax)} (${Math.round(k * 100)}%)</span></span>`
+    if (r.ctxGrowth?.length) html += `<span class="growth"><span class="spark" title="Context growth per prompt">${spark(r.ctxGrowth)}</span> <span class="num">${signed(r.ctxGrowth.at(-1))}</span></span>`
     if (r.cacheExpiresAt) {
       const left = r.cacheExpiresAt - Date.now()
       html += left > 0 ? `<span class="cache" style="color:${left < 300000 ? 'var(--wait)' : 'var(--run)'}">cache ${until(left)}</span>` : `<span class="cache num">cache expired</span>`
@@ -256,12 +300,12 @@ function rowHtml(r, where) {
     html += `</div>`
   }
   if (r.todosTotal > 0) {
-    html += `<div class="line">${meter((r.todosDone ?? 0) / r.todosTotal, 'var(--cyan)')}<span class="num">todo ${r.todosDone ?? 0}/${r.todosTotal}</span>`
+    html += `<div class="line todo">${meter((r.todosDone ?? 0) / r.todosTotal, 'var(--cyan)')}<span class="num">todo ${r.todosDone ?? 0}/${r.todosTotal}</span>`
     if (r.todoActive) html += ` <span class="num">${esc(r.todoActive)}</span>`
     html += `</div>`
   }
-  if (r.lastPrompt) html += `<div class="line dim">› ${esc(r.lastPrompt)}</div>`
-  if (r.lastReply) html += `<div class="line dim">‹ ${esc(r.lastReply)}</div>`
+  if (r.lastPrompt) html += `<div class="line dim convo">› ${esc(r.lastPrompt)}</div>`
+  if (r.lastReply) html += `<div class="line dim convo">‹ ${esc(r.lastReply)}</div>`
   return html + `</div>`
 }
 
@@ -389,19 +433,50 @@ function tick() {
   u.classList.toggle('stale', stale && lastOk > 0)
 }
 
-// Theme button cycles auto (follow macOS) → light → dark.
-const THEMES = { auto: '◐ Auto', light: '☀︎ Light', dark: '☾ Dark' }
+// Settings (gear): theme, and which small pieces of each row the page shows.
+// Kept in localStorage; when storage is unavailable everything stays on.
+const PIECES = [
+  ['limits', '5h / 7d usage limits', '5h ▬ 34% · 2h21'],
+  ['stats', 'Window CPU / memory / GPU', 'CPU 1.2% · 352MB │ GPU …'],
+  ['ctx', 'Context bar', '▬▬ ctx 86k/200k (43%)'],
+  ['growth', 'Context growth sparkline', '▄▁▂▂█ ▲ +36.6k'],
+  ['cache', 'Prompt cache time', 'cache 4 min · cache expired'],
+  ['todo', 'Todo progress', '▬▬ todo 5/8'],
+  ['now', 'Current step', 'now Raising contrast…'],
+  ['convo', 'Last prompt and reply', '› … ‹ …'],
+]
+function hidden() {
+  try { return new Set(JSON.parse(localStorage.getItem('hide') || '[]')) } catch { return new Set() }
+}
+function applyHidden(set) {
+  for (const [id] of PIECES) document.body.classList.toggle(`hide-${id}`, set.has(id))
+}
 function setTheme(t) {
   if (t === 'auto') delete document.documentElement.dataset.theme
   else document.documentElement.dataset.theme = t
   try { t === 'auto' ? localStorage.removeItem('theme') : localStorage.setItem('theme', t) } catch {}
-  $('theme').textContent = THEMES[t]
+  document.querySelectorAll('[data-theme-pick]').forEach(b => b.classList.toggle('on', b.dataset.themePick === t))
 }
-$('theme').addEventListener('click', () => {
-  const now = document.documentElement.dataset.theme || 'auto'
-  setTheme({ auto: 'light', light: 'dark', dark: 'auto' }[now])
+$('toggles').innerHTML = PIECES.map(([id, label, sample]) =>
+  `<label class="toggle"><span>${esc(label)}<small>${esc(sample)}</small></span><input type="checkbox" data-piece="${id}"></label>`).join('')
+function openSettings() {
+  const off = hidden()
+  document.querySelectorAll('[data-piece]').forEach(i => { i.checked = !off.has(i.dataset.piece) })
+  setTheme(document.documentElement.dataset.theme || 'auto')
+  $('settings').hidden = false
+}
+$('gear').addEventListener('click', openSettings)
+$('settingsClose').addEventListener('click', () => { $('settings').hidden = true })
+$('settings').addEventListener('click', e => { if (e.target === $('settings')) $('settings').hidden = true })
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('settings').hidden = true })
+$('themeSeg').addEventListener('click', e => { const b = e.target.closest('[data-theme-pick]'); if (b) setTheme(b.dataset.themePick) })
+$('toggles').addEventListener('change', e => {
+  const off = hidden()
+  e.target.checked ? off.delete(e.target.dataset.piece) : off.add(e.target.dataset.piece)
+  try { localStorage.setItem('hide', JSON.stringify([...off])) } catch {}
+  applyHidden(off)
 })
-setTheme(document.documentElement.dataset.theme || 'auto')
+applyHidden(hidden())
 
 poll()
 setInterval(poll, POLL_MS)

@@ -31,7 +31,7 @@ The screenshots use demo data.
 | **LAN / phone** | Optional; only a URL carrying the secret key gets in |
 | **Chrome side panel** | A panel on the right of the browser; the toolbar badge counts sessions waiting and running |
 | **Notifications** | A macOS notification when a session needs you or finishes; click it to jump to that VS Code terminal. Right-click the toolbar icon to turn either kind off |
-| **Dark / light** | Follows macOS by default; the button by the title cycles auto, light and dark, remembered per browser |
+| **Settings** | The ⚙ in the top-right corner: theme (auto from macOS / light / dark) and a switch for each small piece of information: usage limits, window CPU / memory, context bar, growth sparkline, cache time, todos, current step, last prompt and reply. Saved per browser; the Chrome side panel shares them |
 
 ## Requirements
 
