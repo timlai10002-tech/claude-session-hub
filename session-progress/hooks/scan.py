@@ -9,6 +9,12 @@ PROJ = os.path.join(HOME, ".claude", "projects")
 # before the permission prompt opens (the transcript gets it only afterwards).
 PENDING = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "pending")
 PENDING_WINDOW_MS = 120_000
+# The records hold each session's next command: keep the folder to this user.
+try:
+    if os.path.isdir(PENDING) and os.stat(PENDING).st_mode & 0o077:
+        os.chmod(PENDING, 0o700)
+except OSError:
+    pass
 
 
 def recorded_pending(sid, since):

@@ -28,6 +28,7 @@ The screenshots use demo data. The UI text is in Traditional Chinese (允許 = A
 | **Answer prompts** | When a session is stuck on a permission prompt or a question, answer it from the web page |
 | **LAN / phone** | Optional; only a URL carrying the secret key gets in |
 | **Chrome side panel** | A panel on the right of the browser; the toolbar badge counts sessions waiting and running |
+| **Dark / light** | Follows macOS by default; the button by the title cycles auto, light and dark, remembered per browser |
 
 ## Requirements
 
