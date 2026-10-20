@@ -275,14 +275,17 @@ class Session:
 
     # --- what the page reads
     def summary(self):
-        return {"id": self.id, "title": self.title, "cwd": self.cwd.replace(HOME, "~", 1), "status": self.status,
-                "error": self.error, "created": int(self.created * 1000), "updated": int(self.updated * 1000),
-                "waiting": bool(self.pending), "usage": self.usage}
+        """What the list and the hub page show: status, the last reply, and the waiting permission."""
+        with self.lock:
+            last = next((i["text"] for i in reversed(self.items) if i.get("type") == "message" and i.get("role") == "agent"), "")
+            pending = {k: v for k, v in self.pending.items() if k != "rpc"} if self.pending else None
+            return {"id": self.id, "title": self.title, "cwd": self.cwd.replace(HOME, "~", 1), "status": self.status,
+                    "error": self.error, "created": int(self.created * 1000), "updated": int(self.updated * 1000),
+                    "waiting": bool(pending), "pending": pending, "last": " ".join(last.split())[-200:], "usage": self.usage}
 
     def state(self):
         with self.lock:
-            pending = {k: v for k, v in self.pending.items() if k != "rpc"} if self.pending else None
-            return {**self.summary(), "version": self.version, "items": list(self.items), "pending": pending,
+            return {**self.summary(), "version": self.version, "items": list(self.items),
                     "modes": self.modes, "mode": self.mode}
 
 

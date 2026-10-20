@@ -108,6 +108,7 @@
 <script>
 const POLL_MS = 3000, CONFIRM_MS = 5000
 const RELOAD_HINT = '在那個 VS Code 視窗執行「Developer: Reload Window」，載入新版 claude-terminal-focus 擴充（0.2 以上）'
+let acpRows = []
 let rows = [], limits = { at: 0, list: [] }, lastOk = 0, armed = '', armTimer = 0
 
 const $ = id => document.getElementById(id)
@@ -215,11 +216,44 @@ function rowHtml(r) {
   return html + `</div>`
 }
 
+// ACP sessions (started from the acp page) in the hub: same badges, and the
+// agent's own permission options answered in place.
+const ACP_STATUS = { running: 'busy', waiting: 'waiting', idle: 'idle', starting: 'busy', error: 'idle' }
+
+function acpRowHtml(a) {
+  const st = ACP_STATUS[a.status] ?? 'idle'
+  const badge = st === 'busy' ? `<span class="badge busy">RUNNING</span>`
+    : st === 'waiting' ? `<span class="badge waiting">⚠ NEEDS YOU ${span(a.updated)}</span>`
+    : `<span class="badge idle">○ ${esc(a.status)} ${span(a.updated)}</span>`
+  let h = `<div class="row ${st}"><div class="rhead">${badge}<a class="name" href="acp#${esc(a.id)}" title="打開這個 ACP session">↗ ${esc(a.title)}</a><span class="meta">${esc(a.cwd)}${a.usage?.used ? ` · ctx ${tokens(a.usage.used)}/${tokens(a.usage.size)}` : ''}</span></div>`
+  const p = a.pending
+  if (p) {
+    h += `<div class="ask"><div class="q"><b>允許 ${esc(p.title || '這個動作')}？</b>${p.detail ? `<code>${esc(p.detail)}</code>` : ''}</div>`
+    h += `<div class="opts">${p.options.map(o => `<button class="${/^allow/.test(o.kind) ? (o.kind === 'allow_once' ? 'yes' : '') : 'no'}" data-acp="${esc(a.id)}" data-opt="${esc(o.id)}">${esc(o.name)}</button>`).join('')}</div></div>`
+  }
+  if (a.error) h += `<div class="line dim" style="color:var(--red)">${esc(a.error)}</div>`
+  if (a.last) h += `<div class="line dim">‹ ${esc(a.last)}</div>`
+  return h + `</div>`
+}
+
+function acpGroupHtml() {
+  if (!acpRows.length) return ''
+  const order = { waiting: 0, running: 1, starting: 1, idle: 2, error: 3 }
+  const list = [...acpRows].sort((a, b) => (order[a.status] ?? 4) - (order[b.status] ?? 4))
+  const run = list.filter(a => ACP_STATUS[a.status] === 'busy').length, wait = list.filter(a => a.status === 'waiting').length
+  let h = `<section class="group"><div class="ghead"><span class="gname">ACP sessions (${list.length})</span>`
+  if (run) h += `<span class="gcount run">● ${run} running</span>`
+  if (wait) h += `<span class="gcount wait">◐ ${wait} need you</span>`
+  h += `<a class="close" href="acp" style="text-decoration:none">＋ 新 session</a></div>`
+  return h + list.map(acpRowHtml).join('') + `</section>`
+}
+
 function render() {
-  const nRun = count(rows, 'busy'), nWait = count(rows, 'waiting')
+  const all = [...rows, ...acpRows.map(a => ({ status: ACP_STATUS[a.status] ?? 'idle' }))]
+  const nRun = count(all, 'busy'), nWait = count(all, 'waiting')
   $('nRun').textContent = `● ${nRun} running`; $('nRun').classList.toggle('on', nRun > 0)
   $('nWait').textContent = `◐ ${nWait} need you`; $('nWait').classList.toggle('on', nWait > 0)
-  $('nIdle').textContent = `○ ${count(rows, 'idle')} idle`
+  $('nIdle').textContent = `○ ${count(all, 'idle')} idle`
   document.title = nWait ? `(${nWait}⚠) Claude Session Hub` : nRun ? `(${nRun}▶) Claude Session Hub` : 'Claude Session Hub'
 
   $('limits').innerHTML = limits.list.map(l => {
@@ -229,8 +263,10 @@ function render() {
   }).join('')
 
   const groups = groupRows(rows)
-  if (!groups.length) { $('groups').innerHTML = `<div class="empty">No running sessions found.</div>`; return }
-  $('groups').innerHTML = groups.map(g => {
+  if (!groups.length && !acpRows.length) { $('groups').innerHTML = `<div class="empty">No running sessions found.</div>`; return }
+  // Waiting ACP sessions go first; otherwise they follow the terminal sessions.
+  const acpFirst = acpRows.some(a => a.status === 'waiting')
+  $('groups').innerHTML = (acpFirst ? acpGroupHtml() : '') + groups.map(g => {
     const s = g.rows.find(r => r.winCpu !== undefined)
     const run = count(g.rows, 'busy'), wait = count(g.rows, 'waiting')
     let h = `<section class="group ${g.key === 'other' ? 'other' : ''}"><div class="ghead"><span class="gname">${esc(g.label)} (${g.rows.length})</span>`
@@ -241,7 +277,7 @@ function render() {
     h += `</div>`
     if (s) h += `<div class="stats">${s.winSource === 'terminals' ? 'claude terminals' : 'window'} CPU ${s.winCpu}% · ${s.winMemMB}MB │ VS Code CPU ${s.appCpu}% · GPU proc ${s.gpuProcCpu}%${s.gpuUtil !== undefined ? ` · GPU ${s.gpuUtil}% (system)` : ''}</div>`
     return h + g.rows.map(rowHtml).join('') + `</section>`
-  }).join('')
+  }).join('') + (acpFirst ? '' : acpGroupHtml())
 }
 
 async function post(action, pid, extra = {}) {
@@ -262,6 +298,12 @@ async function post(action, pid, extra = {}) {
 }
 
 document.addEventListener('click', e => {
+  const o = e.target.closest('[data-acp]')
+  if (o) {
+    o.closest('.opts').querySelectorAll('button').forEach(b => { b.disabled = true })
+    return fetch(`api/acp/${o.dataset.acp}/permission`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Sessions': '1' }, body: JSON.stringify({ option: o.dataset.opt }) })
+      .then(r => r.json()).then(out => { toast(out.ok ? '已送出' : '這個詢問已經回答過了'); poll() }).catch(() => toast('連不到本機伺服器'))
+  }
   const a = e.target.closest('[data-answer]')
   if (a) {
     a.closest('.opts').querySelectorAll('button').forEach(b => { b.disabled = true })
@@ -290,6 +332,7 @@ async function poll() {
     const res = await fetch('api/sessions', { cache: 'no-store' })
     rows = await res.json()
     try { limits = await (await fetch('api/limits', { cache: 'no-store' })).json() } catch {}
+    try { acpRows = (await (await fetch('api/acp', { cache: 'no-store' })).json()).sessions || [] } catch { acpRows = [] }
     lastOk = Date.now()
     render()
   } catch {}
