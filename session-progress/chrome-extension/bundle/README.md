@@ -1,4 +1,4 @@
-# Claude Sessions — Chrome 側邊面板
+# Claude Session Hub — Chrome 側邊面板
 
 在 Chrome 右側顯示這台 Mac 上所有 Claude Code session 的狀態：
 
@@ -25,7 +25,7 @@
    ```
    這會把本機小伺服器裝到 `~/Library/Application Support/claude-sessions/`，並設成每次登入自動啟動。
 2. Chrome 打開 `chrome://extensions`，開啟右上角「開發人員模式」，按「載入未封裝項目」，選這個資料夾裡的 `extension`。
-3. 在工具列拼圖圖示裡把「Claude Sessions」釘選出來，點它就會打開右側面板。
+3. 在工具列拼圖圖示裡把「Claude Session Hub」釘選出來，點它就會打開右側面板。
 
 ## 選用：點擊跳到 VS Code terminal
 

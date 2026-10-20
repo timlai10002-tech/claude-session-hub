@@ -1,12 +1,27 @@
 {
   "manifest_version": 3,
-  "name": "Claude Sessions",
-  "version": "0.1.0",
-  "description": "Side panel with every Claude Code session on this Mac, from the session-progress mod's local server (127.0.0.1:8787)",
-  "permissions": ["sidePanel", "alarms"],
-  "host_permissions": ["http://127.0.0.1:8787/*"],
-  "side_panel": { "default_path": "panel.html" },
-  "action": { "default_title": "Claude Sessions" },
-  "background": { "service_worker": "background.js" },
-  "icons": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" }
+  "name": "Claude Session Hub",
+  "version": "0.2.0",
+  "description": "Side panel showing every Claude Code session on this Mac: who is running, who needs you, context use; answer prompts and start new sessions. Reads the local server at 127.0.0.1:8787.",
+  "permissions": [
+    "sidePanel",
+    "alarms"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8787/*"
+  ],
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+  "action": {
+    "default_title": "Claude Session Hub"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
 }

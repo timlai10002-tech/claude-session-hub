@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Claude Sessions</title>
+<title>Claude Session Hub</title>
 <style>
   :root {
     --bg: #f6f6f4; --card: #ffffff; --fg: #1d1d1b; --dim: #74746f; --line: #e3e3de;
@@ -94,7 +94,7 @@
 <script>if (new URLSearchParams(location.search).has('panel')) document.body.classList.add('panel')</script>
 <main>
   <header>
-    <h1>Claude Sessions</h1>
+    <h1>Claude Session Hub</h1>
     <span class="pill run" id="nRun"></span>
     <span class="pill wait" id="nWait"></span>
     <span class="pill" id="nIdle"></span>
@@ -220,7 +220,7 @@ function render() {
   $('nRun').textContent = `● ${nRun} running`; $('nRun').classList.toggle('on', nRun > 0)
   $('nWait').textContent = `◐ ${nWait} need you`; $('nWait').classList.toggle('on', nWait > 0)
   $('nIdle').textContent = `○ ${count(rows, 'idle')} idle`
-  document.title = nWait ? `(${nWait}⚠) Claude Sessions` : nRun ? `(${nRun}▶) Claude Sessions` : 'Claude Sessions'
+  document.title = nWait ? `(${nWait}⚠) Claude Session Hub` : nRun ? `(${nRun}▶) Claude Session Hub` : 'Claude Session Hub'
 
   $('limits').innerHTML = limits.list.map(l => {
     const left = l.resetsAt ? Date.parse(l.resetsAt) - Date.now() : NaN

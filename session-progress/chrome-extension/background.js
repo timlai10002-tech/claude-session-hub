@@ -21,10 +21,10 @@ async function poll() {
         : ['', '#777', `${rows.length} sessions, all idle`]
     await chrome.action.setBadgeText({ text })
     await chrome.action.setBadgeBackgroundColor({ color })
-    await chrome.action.setTitle({ title: `Claude Sessions · ${title}` })
+    await chrome.action.setTitle({ title: `Claude Session Hub · ${title}` })
   } catch {
     await chrome.action.setBadgeText({ text: '·' })
     await chrome.action.setBadgeBackgroundColor({ color: '#999' })
-    await chrome.action.setTitle({ title: 'Claude Sessions · local server not running (run /sessions-web)' })
+    await chrome.action.setTitle({ title: 'Claude Session Hub · local server not running (run /sessions-web)' })
   }
 }

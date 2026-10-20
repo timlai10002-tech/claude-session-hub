@@ -1,5 +1,5 @@
 #!/bin/bash
-# Installs the Claude Sessions local server (127.0.0.1:8787) and starts it at every login.
+# Installs the Claude Session Hub local server (127.0.0.1:8787) and starts it at every login.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 DEST="$HOME/Library/Application Support/claude-sessions"
