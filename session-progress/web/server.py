@@ -125,10 +125,6 @@ def who(r):
     return project, (topic[:40] + "…") if len(topic) > 40 else topic
 
 
-def has_cjk(text):
-    return any("\u3400" <= ch <= "\u9fff" or "\uf900" <= ch <= "\ufaff" for ch in text)
-
-
 def alert(kind, project, topic, detail):
     """Speak and/or notify one event, as the settings say. Text goes as arguments, never code."""
     on = alert_settings()
@@ -139,16 +135,13 @@ def alert(kind, project, topic, detail):
         subprocess.Popen(["osascript", *script, title, " ".join(str(detail or "").split())[:180] or " "],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     # The chime first, then the voice, one after the other, off the watcher's thread.
-    # A topic in Chinese is read by the Mandarin voice, in Chinese; otherwise the default voice.
+    # Always spoken in Mandarin (Meijia), which reads English words in a title too.
     def sound_then_voice():
         if on[f"{kind}Sound"]:
             play(on[f"{kind}SoundName"])
         if on[f"{kind}Speak"]:
             spoken = " ".join(x for x in (project.replace("-", " ").replace("_", " "), topic.rstrip("…")) if x)
-            if has_cjk(spoken):
-                say = ["say", "-v", "Meijia", f"{spoken}，完成了" if kind == "done" else f"{spoken}，需要你"]
-            else:
-                say = ["say", f"{spoken} is done" if kind == "done" else f"{spoken} needs you"]
+            say = ["say", "-v", "Meijia", f"{spoken}，完成了" if kind == "done" else f"{spoken}，需要你"]
             subprocess.run(say, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
     threading.Thread(target=sound_then_voice, daemon=True).start()
 
