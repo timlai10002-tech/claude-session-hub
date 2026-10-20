@@ -69,7 +69,8 @@ while time.time() < deadline:
         finally:
             os.remove(ack)
         # The 0.1.0 extension ignores the action and always focuses; its ack has no "action".
-        if out.get("action", "focus") != action:
+        # Before 0.3.1 a key request is acked but only focuses; 0.3.1 adds "version".
+        if out.get("action", "focus") != action or (action == "key" and not out.get("version")):
             out = {"ok": False, "reason": "old-extension"}
         print(json.dumps(out))
         sys.exit(0)

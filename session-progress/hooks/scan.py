@@ -326,6 +326,9 @@ for r in rows:
         if b.get("folder"):
             r["windowLabel"] = b["folder"].replace(HOME, "~", 1)
         set_stats(r, procs, table.get(b["extHost"], (0,))[0], "extension")
+        # Extensions before 0.3.1 send no version and cannot type an answer.
+        if b.get("version"):
+            r["extVersion"] = b["version"]
         continue
     # No heartbeat (extension missing or not reloaded): claude -> ... -> shell -> pty host -> main.
     i = next((i for i, p in enumerate(chain) if is_code_main(p)), None)

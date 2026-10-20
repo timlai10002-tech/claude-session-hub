@@ -169,11 +169,13 @@ function askHtml(r) {
     : p.kind === 'plan' ? `<b>核准計畫？</b>${esc(p.detail)}`
     : `<b>允許 ${esc(p.tool)}？</b>${p.detail ? `<code>${esc(p.detail)}</code>` : ''}`
   const list = choices(p)
-  const can = r.app === 'vscode'
+  // Typing the answer needs the window's extension at 0.3.1 or later (it reports a version).
+  const can = r.app === 'vscode' && !!r.extVersion
   let h = `<div class="ask"><div class="q">${what}</div>`
   if (list) h += `<div class="opts">${list.map(([k, label, cls]) => `<button class="${cls}" data-answer="${r.pid}" data-key="${k}" data-since="${r.statusSince}" ${can ? '' : 'disabled'}>${esc(label)}</button>`).join('')}</div>`
   else h += `<div class="note">這題有多個問題或可複選，請到 terminal 回答</div>`
   if (r.app !== 'vscode') h += `<div class="note">只有 VS Code terminal 裡的 session 能從這裡回答</div>`
+  else if (!r.extVersion) h += `<div class="note">這個 VS Code 視窗的擴充是舊版，還不能從這裡回答：在那個視窗執行「Developer: Reload Window」</div>`
   else if (!p) h += `<div class="note">看不到詢問內容（session 重新載入 plugin 後就有），選項是一般權限詢問的順序</div>`
   return h + `</div>`
 }
@@ -249,7 +251,7 @@ async function post(action, pid, extra = {}) {
     if (action === 'answer') {
       if (out.ok) toast('已送出')
       else if (out.reason === 'not-waiting') toast('這個 session 已經不在等了，畫面會更新')
-      else if (out.reason === 'old-extension') toast(`VS Code 擴充太舊，沒送出：${RELOAD_HINT.replace('0.2', '0.3')}`)
+      else if (out.reason === 'old-extension') toast('VS Code 擴充太舊，沒送出：在那個視窗執行「Developer: Reload Window」，載入 claude-terminal-focus 0.3.1 以上')
       else toast('VS Code 視窗沒有回應：claude-terminal-focus 擴充裝了嗎？視窗 reload 過嗎？')
       return setTimeout(poll, 600)
     }

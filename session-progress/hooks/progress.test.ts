@@ -176,7 +176,8 @@ test('a tool call is recorded for the web view before it runs', async ($, on) =>
   on('tool.call', async () => ({ result: { text: 'ok' } }) as never)
 
   await $.tool.call({ tool: 'Bash', command: 'rm -rf build', description: 'Clean' } as never)
-  await new Promise(r => setTimeout(r, 20))
+  // The recorder runs beside the call (not awaited): let its session.id and fs.write settle.
+  for (let i = 0; i < 20; i++) await Promise.resolve()
   const rec = writes.find(w => w.path.endsWith('/web/pending/sid-1.json'))
   expect(rec).toBeDefined()
   const body = JSON.parse(rec!.text)

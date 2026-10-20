@@ -18,6 +18,9 @@ const DIR = path.join(os.homedir(), '.claude', 'terminal-focus')
 const REQ = path.join(DIR, 'request.json')
 const WINDOWS = path.join(DIR, 'windows')
 const BEAT = path.join(WINDOWS, `${process.pid}.json`)
+// Sent with every heartbeat and ack, so the mod knows what this window can do
+// (typing an answer needs 0.3.1 or later).
+const VERSION = require('./package.json').version
 const STALE_MS = 10000
 const BEAT_MS = 5000
 
@@ -38,7 +41,7 @@ async function shellPids() {
 }
 
 async function beat() {
-  const body = { extHost: process.pid, folder: folder() ?? null, terminals: await shellPids(), ts: Date.now() }
+  const body = { extHost: process.pid, version: VERSION, folder: folder() ?? null, terminals: await shellPids(), ts: Date.now() }
   const tmp = `${BEAT}.tmp`
   try {
     fs.writeFileSync(tmp, JSON.stringify(body))
@@ -63,7 +66,7 @@ function activate(context) {
     for (const t of vscode.window.terminals) {
       const pid = await t.processId
       if (!pid || !wanted.has(pid)) continue
-      fs.writeFileSync(path.join(DIR, `ack-${req.id}.json`), JSON.stringify({ ok: true, action: req.action ?? 'focus', terminal: t.name }))
+      fs.writeFileSync(path.join(DIR, `ack-${req.id}.json`), JSON.stringify({ ok: true, action: req.action ?? 'focus', version: VERSION, terminal: t.name }))
       if (req.action === 'key') {
         // Only a menu choice: one digit or Esc, never free text.
         if (/^([1-9]|\x1b)$/.test(req.text ?? '')) t.sendText(req.text, false)

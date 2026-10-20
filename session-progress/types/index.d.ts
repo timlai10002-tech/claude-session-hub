@@ -38,6 +38,8 @@ export type SessionRow = {
   winMemMB?: number
   /** `extension`: ext host + all its terminals; `terminals`: only the terminals running claude (no heartbeat) */
   winSource?: 'extension' | 'terminals'
+  /** The window's claude-terminal-focus version; absent before 0.3.1, which cannot type answers. */
+  extVersion?: string
   /** The whole VS Code app instance the window belongs to */
   appCpu?: number
   /** CPU of that instance's GPU process (per-process GPU time needs sudo) */
