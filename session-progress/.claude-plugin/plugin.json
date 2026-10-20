@@ -1,6 +1,6 @@
 {
   "name": "session-progress",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Pane and local web page showing every Claude Code session: status, context use, VS Code window CPU/GPU, jump to or close its VS Code window",
   "types": "./types/index.d.ts",
   "author": {

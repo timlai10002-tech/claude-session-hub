@@ -11,5 +11,4 @@ session-progress/vscode-extension/*.vsix
 # Stale tsc output; the plugin loads register.tsx
 session-progress/hooks/*.js
 session-progress/tsconfig.json
-session-progress/acp/node_modules/
 __pycache__/
