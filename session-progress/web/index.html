@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Sessions</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --fg: #1d1d1b; --dim: #74746f; --line: #e3e3de;
+    --run: #1f9d55; --run-bg: #dcf5e5; --wait: #c98a00; --wait-bg: #fff1c7;
+    --blue: #2f6fd6; --red: #d23f3f; --cyan: #138a9a; --track: #ebebe6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615; --card: #1f1f1d; --fg: #ececea; --dim: #95958f; --line: #30302d;
+      --run: #3ccf7a; --run-bg: #173826; --wait: #f2b630; --wait-bg: #3a2f10;
+      --blue: #6ea0ff; --red: #ff6b6b; --cyan: #4cc7d6; --track: #30302d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "PingFang TC", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+  header { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
+  h1 { font-size: 20px; margin: 0 12px 0 0; }
+  .pill { padding: 3px 10px; border-radius: 999px; font-weight: 600; font-size: 13px; color: var(--dim); border: 1px solid var(--line); }
+  .pill.run.on { background: var(--run); color: #000; border-color: var(--run); }
+  .pill.wait.on { background: var(--wait); color: #000; border-color: var(--wait); }
+  .limits { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .limit b { font-weight: 700; } .limit .reset { color: var(--dim); }
+  .limit .meter { width: 70px; margin: 0 6px 0 4px; }
+  .spark { font-family: ui-monospace, Menlo, monospace; color: var(--cyan); letter-spacing: 1px; margin-left: 10px; }
+  .cache { margin-left: 10px; font-size: 12px; }
+  .updated { margin-left: auto; color: var(--dim); font-size: 12px; }
+  .updated.stale { color: var(--red); }
+  .group { background: var(--card); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .ghead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 14px 4px; }
+  .gname { font-weight: 700; color: var(--blue); }
+  .group.other .gname { color: var(--dim); }
+  .gcount { font-size: 12px; font-weight: 600; }
+  .gcount.run { color: var(--run); } .gcount.wait { color: var(--wait); }
+  .close { margin-left: auto; font: inherit; font-size: 12px; background: none; border: 1px solid var(--line); color: var(--dim); border-radius: 6px; padding: 2px 9px; cursor: pointer; }
+  .close:hover { color: var(--red); border-color: var(--red); }
+  .close.armed { background: var(--red); border-color: var(--red); color: #fff; }
+  .stats { padding: 0 14px 8px; color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .row { border-top: 1px solid var(--line); border-left: 4px solid transparent; padding: 10px 14px 10px 12px; }
+  .row.busy { border-left-color: var(--run); background: linear-gradient(90deg, var(--run-bg), transparent 60%); }
+  .row.waiting { border-left-color: var(--wait); background: linear-gradient(90deg, var(--wait-bg), transparent 60%); }
+  .row.idle { opacity: .6; }
+  .rhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .badge { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 5px; color: #000; white-space: nowrap; }
+  .badge.busy { background: var(--run); } .badge.waiting { background: var(--wait); }
+  .badge.idle { background: none; color: var(--dim); font-weight: 500; padding: 0; }
+  .busy .badge.busy::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: #000; animation: pulse 1s infinite alternate; vertical-align: 1px; }
+  @keyframes pulse { from { opacity: 1; } to { opacity: .2; } }
+  .waitfor { color: var(--wait); font-weight: 600; font-size: 12px; }
+  .name { font-weight: 700; font: inherit; font-weight: 700; background: none; border: 0; padding: 0; color: var(--fg); }
+  button.name { cursor: pointer; color: var(--blue); }
+  button.name:hover { text-decoration: underline; }
+  .meta { color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+  .line { margin-top: 3px; padding-left: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .line.dim { color: var(--dim); font-size: 13px; }
+  .now b { color: var(--run); margin-right: 6px; }
+  .meter { display: inline-block; vertical-align: middle; width: 120px; height: 7px; border-radius: 4px; background: var(--track); overflow: hidden; margin-right: 8px; }
+  .meter > i { display: block; height: 100%; }
+  .num { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .empty { color: var(--dim); padding: 40px 0; text-align: center; }
+  .ask { margin: 6px 0 2px; padding: 8px 10px; border: 1px solid var(--wait); border-radius: 8px; }
+  .ask .q { white-space: normal; overflow-wrap: anywhere; font-size: 13px; }
+  .ask .q b { color: var(--wait); margin-right: 6px; }
+  .ask .q code { font-size: 12px; background: var(--track); padding: 1px 5px; border-radius: 4px; }
+  .ask .opts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+  .ask button { font: inherit; font-size: 13px; padding: 4px 11px; border-radius: 6px; cursor: pointer; border: 1px solid var(--line); background: none; color: var(--fg); }
+  .ask button.yes { background: var(--run); border-color: var(--run); color: #000; font-weight: 600; }
+  .ask button.no:hover { color: var(--red); border-color: var(--red); }
+  .ask button:disabled { opacity: .45; cursor: not-allowed; }
+  .ask .note { margin-top: 5px; font-size: 12px; color: var(--dim); white-space: normal; }
+  /* Chrome side panel (?panel=1): narrow, so tighter spacing and no page title. */
+  .panel main { padding: 10px 10px 40px; }
+  .panel h1 { display: none; }
+  .panel header { gap: 6px; margin-bottom: 10px; }
+  .panel .limits { width: 100%; order: 5; }
+  .panel .updated { width: 100%; margin-left: 0; order: 6; }
+  .panel .ghead, .panel .stats { padding-left: 10px; padding-right: 10px; }
+  .panel .row { padding: 8px 10px 8px 8px; }
+  .panel .meter { width: 70px; }
+  .panel .spark, .panel .cache { margin-left: 6px; }
+  .panel .line.dim { display: none; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<script>if (new URLSearchParams(location.search).has('panel')) document.body.classList.add('panel')</script>
+<main>
+  <header>
+    <h1>Claude Sessions</h1>
+    <span class="pill run" id="nRun"></span>
+    <span class="pill wait" id="nWait"></span>
+    <span class="pill" id="nIdle"></span>
+    <span class="limits" id="limits"></span>
+    <span class="updated" id="updated"></span>
+  </header>
+  <div id="groups"></div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const POLL_MS = 3000, CONFIRM_MS = 5000
+const RELOAD_HINT = '在那個 VS Code 視窗執行「Developer: Reload Window」，載入新版 claude-terminal-focus 擴充（0.2 以上）'
+let rows = [], limits = { at: 0, list: [] }, lastOk = 0, armed = '', armTimer = 0
+
+const $ = id => document.getElementById(id)
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+const ago = then => {
+  const s = Math.max(0, Math.round((Date.now() - then) / 1000))
+  return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m` : s < 86400 ? `${Math.floor(s / 3600)}h` : `${Math.floor(s / 86400)}d`
+}
+// Two units: 45s, 12m, 3h12m, 2d5h.
+const span = then => {
+  const s = Math.max(0, Math.round((Date.now() - then) / 1000))
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60); if (m < 60) return `${m}m`
+  const h = Math.floor(m / 60); if (h < 24) return m % 60 ? `${h}h${m % 60}m` : `${h}h`
+  const d = Math.floor(h / 24); return h % 24 ? `${d}d${h % 24}h` : `${d}d`
+}
+const SPARK = '▁▂▃▄▅▆▇█'
+const LIMIT_LABEL = { five_hour: '5h', seven_day: '7d', spend_limit: '$' }
+const spark = g => { const top = Math.max(1, ...g); return g.map(x => SPARK[Math.max(0, Math.min(7, Math.round(Math.max(0, x) / top * 7)))]).join('') }
+const signed = n => `${n < 0 ? '▼ -' : '▲ +'}${Math.abs(n) >= 1000 ? `${+(Math.abs(n) / 1000).toFixed(1)}k` : Math.abs(n)}`
+const until = ms => { const m = Math.round(ms / 60000); if (m < 60) return `${m} min`; const h = Math.floor(m / 60); return h < 24 ? `${h}h${String(m % 60).padStart(2, '0')}` : `${Math.floor(h / 24)}d${h % 24}h` }
+const tokens = n => n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` : `${Math.round(n / 1000)}k`
+const RANK = { waiting: 0, busy: 1, idle: 2 }
+const count = (list, st) => list.filter(r => r.status === st).length
+
+function toast(text) {
+  const t = $('toast'); t.textContent = text; t.classList.add('show')
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 4000)
+}
+
+function groupRows(list) {
+  const groups = new Map()
+  for (const r of list) {
+    const key = r.app === 'vscode' ? `vscode:${r.window}` : 'other'
+    const label = r.app === 'vscode' ? `VS Code · ${r.windowLabel ?? r.window}` : 'Other terminals'
+    if (!groups.has(key)) groups.set(key, { key, label, rows: [] })
+    groups.get(key).rows.push(r)
+  }
+  const rank = g => g.key === 'other' ? 9 : Math.min(...g.rows.map(r => RANK[r.status] ?? 3))
+  return [...groups.values()].sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label))
+}
+
+function meter(ratio, color) {
+  return `<span class="meter"><i style="width:${Math.min(100, ratio * 100).toFixed(1)}%;background:${color}"></i></span>`
+}
+
+// The choices a waiting prompt offers, as [key, label, class]: a digit picks a
+// menu line in the terminal, esc declines.
+function choices(p) {
+  if (p?.kind === 'question') return p.options
+    ? [...p.options.map((o, i) => [String(i + 1), `${i + 1}. ${o}`, '']), ['esc', '取消', 'no']]
+    : null
+  if (p?.kind === 'plan') return [['1', '核准，自動接受編輯', 'yes'], ['2', '核准，逐一確認', ''], ['esc', '繼續規劃', 'no']]
+  return [['1', '允許', 'yes'], ['2', '允許且不再詢問', ''], ['esc', '拒絕', 'no']]
+}
+
+function askHtml(r) {
+  const p = r.pending
+  const what = !p ? esc(r.waitingFor || '等待回應')
+    : p.kind === 'question' ? `<b>Claude 問</b>${esc(p.detail)}`
+    : p.kind === 'plan' ? `<b>核准計畫？</b>${esc(p.detail)}`
+    : `<b>允許 ${esc(p.tool)}？</b>${p.detail ? `<code>${esc(p.detail)}</code>` : ''}`
+  const list = choices(p)
+  const can = r.app === 'vscode'
+  let h = `<div class="ask"><div class="q">${what}</div>`
+  if (list) h += `<div class="opts">${list.map(([k, label, cls]) => `<button class="${cls}" data-answer="${r.pid}" data-key="${k}" data-since="${r.statusSince}" ${can ? '' : 'disabled'}>${esc(label)}</button>`).join('')}</div>`
+  else h += `<div class="note">這題有多個問題或可複選，請到 terminal 回答</div>`
+  if (r.app !== 'vscode') h += `<div class="note">只有 VS Code terminal 裡的 session 能從這裡回答</div>`
+  else if (!p) h += `<div class="note">看不到詢問內容（session 重新載入 plugin 後就有），選項是一般權限詢問的順序</div>`
+  return h + `</div>`
+}
+
+function rowHtml(r) {
+  const badge = r.status === 'busy' ? `<span class="badge busy">RUNNING ${span(r.statusSince)}</span>`
+    : r.status === 'waiting' ? `<span class="badge waiting">⚠ NEEDS YOU ${span(r.statusSince)}</span>`
+    : `<span class="badge idle">○ ${esc(r.status)} ${span(r.statusSince)}</span>`
+  const name = r.app === 'vscode'
+    ? `<button class="name" data-focus="${r.pid}" title="切到這個 VS Code terminal">↗ ${esc(r.name)}</button>`
+    : `<span class="name">${esc(r.name)}</span>`
+  let html = `<div class="row ${esc(r.status)}"><div class="rhead">${badge}`
+  if (r.waitingFor) html += `<span class="waitfor">${esc(r.waitingFor)}</span>`
+  html += `${name}<span class="meta">${esc(r.tty)} · ${esc(r.cwd)}</span></div>`
+  if (r.status === 'waiting') html += askHtml(r)
+  if (r.title) html += `<div class="line">${esc(r.title)}</div>`
+  const now = r.todoActive || r.lastTool
+  if (r.status === 'busy' && now) html += `<div class="line now"><b>now</b>${esc(now)}</div>`
+  if (r.ctxTokens && r.ctxMax) {
+    const k = r.ctxTokens / r.ctxMax
+    const c = k >= .8 ? 'var(--red)' : k >= .5 ? 'var(--wait)' : 'var(--run)'
+    html += `<div class="line">${meter(k, c)}<span class="num">ctx ${tokens(r.ctxTokens)}/${tokens(r.ctxMax)} (${Math.round(k * 100)}%)</span>`
+    if (r.ctxGrowth?.length) html += `<span class="spark" title="每次 prompt 的 context 增量">${spark(r.ctxGrowth)}</span> <span class="num">${signed(r.ctxGrowth.at(-1))}</span>`
+    if (r.cacheExpiresAt) {
+      const left = r.cacheExpiresAt - Date.now()
+      html += left > 0 ? `<span class="cache" style="color:${left < 300000 ? 'var(--wait)' : 'var(--run)'}">cache ${until(left)}</span>` : `<span class="cache num">cache expired</span>`
+    }
+    html += `</div>`
+  }
+  if (r.todosTotal > 0) {
+    html += `<div class="line">${meter((r.todosDone ?? 0) / r.todosTotal, 'var(--cyan)')}<span class="num">todo ${r.todosDone ?? 0}/${r.todosTotal}</span>`
+    if (r.todoActive) html += ` <span class="num">${esc(r.todoActive)}</span>`
+    html += `</div>`
+  }
+  if (r.lastPrompt) html += `<div class="line dim">› ${esc(r.lastPrompt)}</div>`
+  if (r.lastReply) html += `<div class="line dim">‹ ${esc(r.lastReply)}</div>`
+  return html + `</div>`
+}
+
+function render() {
+  const nRun = count(rows, 'busy'), nWait = count(rows, 'waiting')
+  $('nRun').textContent = `● ${nRun} running`; $('nRun').classList.toggle('on', nRun > 0)
+  $('nWait').textContent = `◐ ${nWait} need you`; $('nWait').classList.toggle('on', nWait > 0)
+  $('nIdle').textContent = `○ ${count(rows, 'idle')} idle`
+  document.title = nWait ? `(${nWait}⚠) Claude Sessions` : nRun ? `(${nRun}▶) Claude Sessions` : 'Claude Sessions'
+
+  $('limits').innerHTML = limits.list.map(l => {
+    const left = l.resetsAt ? Date.parse(l.resetsAt) - Date.now() : NaN
+    const c = l.percentUsed >= 80 ? 'var(--red)' : l.percentUsed >= 50 ? 'var(--wait)' : 'var(--run)'
+    return `<span class="limit"><b>${esc(LIMIT_LABEL[l.kind] ?? l.kind)}</b>${meter(l.percentUsed / 100, c)}<b style="color:${c}">${Math.round(l.percentUsed)}%</b>${left > 0 ? ` <span class="reset">· ${until(left)}</span>` : ''}</span>`
+  }).join('')
+
+  const groups = groupRows(rows)
+  if (!groups.length) { $('groups').innerHTML = `<div class="empty">No running sessions found.</div>`; return }
+  $('groups').innerHTML = groups.map(g => {
+    const s = g.rows.find(r => r.winCpu !== undefined)
+    const run = count(g.rows, 'busy'), wait = count(g.rows, 'waiting')
+    let h = `<section class="group ${g.key === 'other' ? 'other' : ''}"><div class="ghead"><span class="gname">${esc(g.label)} (${g.rows.length})</span>`
+    if (run) h += `<span class="gcount run">● ${run} running</span>`
+    if (wait) h += `<span class="gcount wait">◐ ${wait} need you</span>`
+    const canClose = s?.winSource === 'extension'
+    if (g.key !== 'other') h += `<button class="close ${armed === g.key ? 'armed' : ''}" data-close="${esc(g.key)}" title="${canClose ? '關閉這個 VS Code 視窗' : RELOAD_HINT}">${!canClose ? '✕ close（需先 reload 視窗）' : armed === g.key ? '再按一次關閉視窗' : '✕ close'}</button>`
+    h += `</div>`
+    if (s) h += `<div class="stats">${s.winSource === 'terminals' ? 'claude terminals' : 'window'} CPU ${s.winCpu}% · ${s.winMemMB}MB │ VS Code CPU ${s.appCpu}% · GPU proc ${s.gpuProcCpu}%${s.gpuUtil !== undefined ? ` · GPU ${s.gpuUtil}% (system)` : ''}</div>`
+    return h + g.rows.map(rowHtml).join('') + `</section>`
+  }).join('')
+}
+
+async function post(action, pid, extra = {}) {
+  try {
+    const res = await fetch(`api/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Sessions': '1' }, body: JSON.stringify({ pid, ...extra }) })
+    const out = await res.json()
+    if (action === 'answer') {
+      if (out.ok) toast('已送出')
+      else if (out.reason === 'not-waiting') toast('這個 session 已經不在等了，畫面會更新')
+      else if (out.reason === 'old-extension') toast(`VS Code 擴充太舊，沒送出：${RELOAD_HINT.replace('0.2', '0.3')}`)
+      else toast('VS Code 視窗沒有回應：claude-terminal-focus 擴充裝了嗎？視窗 reload 過嗎？')
+      return setTimeout(poll, 600)
+    }
+    if (out.reason === 'old-extension') toast(`這個視窗的擴充是舊版，只會跳轉不會關閉：${RELOAD_HINT}`)
+    else if (!out.ok) toast('VS Code 視窗沒有回應：claude-terminal-focus 擴充裝了嗎？視窗 reload 過嗎？')
+    else if (action === 'close') { toast('已關閉視窗'); poll() }
+  } catch { toast('連不到本機伺服器') }
+}
+
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-answer]')
+  if (a) {
+    a.closest('.opts').querySelectorAll('button').forEach(b => { b.disabled = true })
+    return post('answer', +a.dataset.answer, { key: a.dataset.key, since: +a.dataset.since })
+  }
+  const f = e.target.closest('[data-focus]')
+  if (f) return post('focus', +f.dataset.focus)
+  const c = e.target.closest('[data-close]')
+  if (!c) return
+  const key = c.dataset.close
+  const g0 = groupRows(rows).find(g => g.key === key)
+  if (g0?.rows.find(r => r.winCpu !== undefined)?.winSource !== 'extension') return toast(`還不能關閉：${RELOAD_HINT}`)
+  if (armed !== key) {
+    armed = key; clearTimeout(armTimer)
+    armTimer = setTimeout(() => { armed = ''; render() }, CONFIRM_MS)
+    return render()
+  }
+  armed = ''; clearTimeout(armTimer)
+  const g = groupRows(rows).find(g => g.key === key)
+  if (g) post('close', g.rows[0].pid)
+  render()
+})
+
+async function poll() {
+  try {
+    const res = await fetch('api/sessions', { cache: 'no-store' })
+    rows = await res.json()
+    try { limits = await (await fetch('api/limits', { cache: 'no-store' })).json() } catch {}
+    lastOk = Date.now()
+    render()
+  } catch {}
+  tick()
+}
+
+function tick() {
+  const u = $('updated'), stale = Date.now() - lastOk > POLL_MS * 3
+  u.textContent = lastOk ? (stale ? `伺服器沒回應 · 最後更新 ${ago(lastOk)} 前` : `updated ${ago(lastOk)} ago`) : '載入中…'
+  u.classList.toggle('stale', stale && lastOk > 0)
+}
+
+poll()
+setInterval(poll, POLL_MS)
+setInterval(tick, 1000)
+</script>
+</body>
+</html>

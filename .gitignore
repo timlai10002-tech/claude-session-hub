@@ -1,0 +1,13 @@
+.DS_Store
+# Runtime state and secrets written by the web server and the mod
+session-progress/web/lan.key
+session-progress/web/lan.enabled
+session-progress/web/limits.json
+session-progress/web/server.log
+session-progress/web/pending/
+# Build outputs (rebuild with make_bundle.py / make_vsix.py)
+session-progress/dist/
+session-progress/vscode-extension/*.vsix
+# Stale tsc output; the plugin loads register.tsx
+session-progress/hooks/*.js
+session-progress/tsconfig.json

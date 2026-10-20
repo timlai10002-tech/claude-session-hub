@@ -1,0 +1,13 @@
+{
+  "name": "tim-mods",
+  "owner": {
+    "name": "Tim"
+  },
+  "plugins": [
+    {
+      "name": "session-progress",
+      "source": "./session-progress",
+      "description": "Pane and local web page showing every Claude Code session: status, context use, VS Code window CPU/GPU, jump to or close its VS Code window"
+    }
+  ]
+}

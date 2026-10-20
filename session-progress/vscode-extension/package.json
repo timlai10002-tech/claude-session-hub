@@ -1,0 +1,10 @@
+{
+  "name": "claude-terminal-focus",
+  "displayName": "Claude Terminal Focus",
+  "description": "Focuses the terminal hosting a Claude Code session when the session-progress mod asks",
+  "publisher": "tim",
+  "version": "0.3.0",
+  "engines": { "vscode": "^1.80.0" },
+  "main": "./extension.js",
+  "activationEvents": ["onStartupFinished"]
+}
