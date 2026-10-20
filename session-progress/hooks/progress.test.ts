@@ -184,3 +184,15 @@ test('a tool call is recorded for the web view before it runs', async ($, on) =>
   expect(body.tool).toBe('Bash')
   expect(body.input).toEqual({ command: 'rm -rf build', description: 'Clean' })
 })
+
+test('running and waiting sessions are pinned in an Active section, tagged with their window', async ($, on) => {
+  on('process.run', async () => ({ value: { exitCode: 0, stdout: JSON.stringify(FAKE), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }) as never)
+  on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
+  await $.command.run({ command: 'sessions', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'session-progress', surface: 'terminal', component: 'Pane', requestId: 'session-progress', props: {} as never })
+  expect(await ui.find({ text: /Active \(2\)/ })).toBeDefined()
+  expect(await ui.find({ text: /\[VS Code · ~\/web-shop\]/ })).toBeDefined()
+  expect(await ui.find({ text: /\[Terminal\]/ })).toBeDefined()
+  expect(await ui.find({ text: /↑ 1 in Active above/ })).toBeDefined()
+  await ui.unmount()
+})

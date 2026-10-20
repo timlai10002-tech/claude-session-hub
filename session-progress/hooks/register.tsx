@@ -143,6 +143,10 @@ function groupRows(list: SessionRow[]): Group[] {
 }
 
 const STATUS_RANK: Record<string, number> = { waiting: 0, busy: 1, idle: 2 }
+const isActive = (r: SessionRow) => r.status === 'busy' || r.status === 'waiting'
+// Where a session lives, for its row in the Active section.
+const whereOf = (r: SessionRow) =>
+  r.app === 'vscode' ? `VS Code · ${r.windowLabel ?? r.window}` : r.app === 'Apple_Terminal' ? 'Terminal' : r.app === 'other' ? 'terminal' : r.app
 
 // The arguments the web view shows for a call that waits on the person; never file contents.
 const PENDING_KEYS = ['command', 'file_path', 'url', 'pattern', 'query', 'prompt', 'skill', 'description', 'questions', 'plan']
@@ -224,6 +228,98 @@ export const register: Register = on => {
         <Text dimColor>{label}</Text>
       )
     const vscodeCount = list.filter(r => r.app === 'vscode').length
+    // Running and waiting sessions are pinned in one Active section on top (waiting
+    // first, longest first); the window groups below keep only the idle ones.
+    const active = list.filter(isActive).sort((a, b) => (STATUS_RANK[a.status] ?? 3) - (STATUS_RANK[b.status] ?? 3) || a.statusSince - b.statusSince)
+    const sessionRow = (r: SessionRow, where?: string) => {
+    const gutter = GUTTER[r.status]
+    const pad = gutter ? <Text color={gutter}>{'  ┃ '}</Text> : '    '
+    const active = r.status === 'busy' || r.status === 'waiting'
+    return (
+    <Box key={r.sessionId} flexDirection="column">
+      <Box key={`head-${r.sessionId}`} flexDirection="row">
+        <Text>
+          {gutter ? <Text color={gutter}>{'  ┃ '}</Text> : '  '}
+          {BADGE[r.status] ? (
+            <Text backgroundColor={gutter} color="black" bold>
+              {' '}{BADGE[r.status]} {span(now, r.statusSince)}{' '}
+            </Text>
+          ) : (
+            <Text color={STATUS_COLOR[r.status] ?? 'white'} dimColor>
+              {STATUS_ICON[r.status] ?? '?'} {r.status} {span(now, r.statusSince)}
+            </Text>
+          )}
+          {r.waitingFor ? <Text color="yellow" bold> {r.waitingFor}</Text> : ''}{' '}
+        </Text>
+        {r.app === 'vscode' ? (
+          <Button key={`open-${r.sessionId}`} plain label={`↗ ${r.name}`} dimColor={!active} hover={{ underline: true }} onPress={() => void vscodeAction($, 'focus', r)} />
+        ) : (
+          <Text bold={active} dimColor={!active}>{r.name}</Text>
+        )}
+        {where ? <Text color="blue"> [{where}]</Text> : ''}
+        <Text wrap="truncate" dimColor> {r.tty} · {r.cwd}</Text>
+      </Box>
+      {r.title && <Text wrap="truncate" dimColor={!active}>{pad}{r.title}</Text>}
+      {r.status === 'busy' && (r.todoActive || r.lastTool) && (
+        <Text wrap="truncate">
+          {pad}
+          <Text color="green" bold>now </Text>
+          {r.todoActive ?? r.lastTool}
+        </Text>
+      )}
+      {r.ctxTokens !== undefined && r.ctxMax !== undefined && (
+        <Text wrap="truncate">
+          {pad}
+          <Text color={ctxColor(r.ctxTokens / r.ctxMax)}>ctx {bar(Math.min(r.ctxTokens, r.ctxMax), r.ctxMax)}</Text>
+          <Text dimColor>
+            {' '}
+            {tokens(r.ctxTokens)}/{tokens(r.ctxMax)} ({Math.round((r.ctxTokens / r.ctxMax) * 100)}%)
+          </Text>
+          {r.ctxGrowth && r.ctxGrowth.length > 0 ? (
+            <Text>
+              {' '}
+              <Text color="cyan">{spark(r.ctxGrowth)}</Text>
+              <Text dimColor> {signed(r.ctxGrowth[r.ctxGrowth.length - 1] ?? 0)}</Text>
+            </Text>
+          ) : (
+            ''
+          )}
+          {r.cacheExpiresAt !== undefined ? (
+            r.cacheExpiresAt > now ? (
+              <Text>
+                <Text dimColor> │ </Text>
+                <Text color={r.cacheExpiresAt - now < 5 * 60_000 ? 'yellow' : 'green'}>cache {untilText(r.cacheExpiresAt - now)}</Text>
+              </Text>
+            ) : (
+              <Text dimColor> │ cache expired</Text>
+            )
+          ) : (
+            ''
+          )}
+        </Text>
+      )}
+      {r.todosTotal !== undefined && r.todosTotal > 0 && (
+        <Text wrap="truncate">
+          {pad}
+          <Text color="cyan">
+            {bar(r.todosDone ?? 0, r.todosTotal)} {r.todosDone}/{r.todosTotal}
+          </Text>
+          {r.todoActive ? <Text dimColor> {r.todoActive}</Text> : ''}
+        </Text>
+      )}
+      {r.lastPrompt && (
+        <Text wrap="truncate" dimColor>
+          {pad}› {r.lastPrompt}
+        </Text>
+      )}
+      {r.lastReply && (
+        <Text wrap="truncate" dimColor>
+          {pad}‹ {r.lastReply}
+        </Text>
+      )}
+    </Box>
+    )
+    }
 
     return (
       <Box flexDirection="column">
@@ -253,6 +349,12 @@ export const register: Register = on => {
           {vscodeCount} VS Code terminals running claude · updated {at ? ago(now, at) : '—'} ago
         </Text>
         {list.length === 0 && <Text dimColor>No running sessions found.</Text>}
+        {active.length > 0 && (
+          <Box key="active" flexDirection="column" marginTop={1}>
+            <Text bold color="green">▌Active ({active.length})</Text>
+            {active.map(r => sessionRow(r, whereOf(r)))}
+          </Box>
+        )}
         {groups.map(g => (
           <Box key={g.key} flexDirection="column" marginTop={1}>
             <Box key={`group-${g.key}`} flexDirection="row">
@@ -278,94 +380,10 @@ export const register: Register = on => {
                 {g.stats.gpuProcCpu}%{g.stats.gpuUtil !== undefined ? ` · GPU ${g.stats.gpuUtil}% (system)` : ''}
               </Text>
             )}
-            {g.rows.map(r => {
-              const gutter = GUTTER[r.status]
-              const pad = gutter ? <Text color={gutter}>{'  ┃ '}</Text> : '    '
-              const active = r.status === 'busy' || r.status === 'waiting'
-              return (
-              <Box key={r.sessionId} flexDirection="column">
-                <Box key={`head-${r.sessionId}`} flexDirection="row">
-                  <Text>
-                    {gutter ? <Text color={gutter}>{'  ┃ '}</Text> : '  '}
-                    {BADGE[r.status] ? (
-                      <Text backgroundColor={gutter} color="black" bold>
-                        {' '}{BADGE[r.status]} {span(now, r.statusSince)}{' '}
-                      </Text>
-                    ) : (
-                      <Text color={STATUS_COLOR[r.status] ?? 'white'} dimColor>
-                        {STATUS_ICON[r.status] ?? '?'} {r.status} {span(now, r.statusSince)}
-                      </Text>
-                    )}
-                    {r.waitingFor ? <Text color="yellow" bold> {r.waitingFor}</Text> : ''}{' '}
-                  </Text>
-                  {r.app === 'vscode' ? (
-                    <Button key={`open-${r.sessionId}`} plain label={`↗ ${r.name}`} dimColor={!active} hover={{ underline: true }} onPress={() => void vscodeAction($, 'focus', r)} />
-                  ) : (
-                    <Text bold={active} dimColor={!active}>{r.name}</Text>
-                  )}
-                  <Text wrap="truncate" dimColor> {r.tty} · {r.cwd}</Text>
-                </Box>
-                {r.title && <Text wrap="truncate" dimColor={!active}>{pad}{r.title}</Text>}
-                {r.status === 'busy' && (r.todoActive || r.lastTool) && (
-                  <Text wrap="truncate">
-                    {pad}
-                    <Text color="green" bold>now </Text>
-                    {r.todoActive ?? r.lastTool}
-                  </Text>
-                )}
-                {r.ctxTokens !== undefined && r.ctxMax !== undefined && (
-                  <Text wrap="truncate">
-                    {pad}
-                    <Text color={ctxColor(r.ctxTokens / r.ctxMax)}>ctx {bar(Math.min(r.ctxTokens, r.ctxMax), r.ctxMax)}</Text>
-                    <Text dimColor>
-                      {' '}
-                      {tokens(r.ctxTokens)}/{tokens(r.ctxMax)} ({Math.round((r.ctxTokens / r.ctxMax) * 100)}%)
-                    </Text>
-                    {r.ctxGrowth && r.ctxGrowth.length > 0 ? (
-                      <Text>
-                        {' '}
-                        <Text color="cyan">{spark(r.ctxGrowth)}</Text>
-                        <Text dimColor> {signed(r.ctxGrowth[r.ctxGrowth.length - 1] ?? 0)}</Text>
-                      </Text>
-                    ) : (
-                      ''
-                    )}
-                    {r.cacheExpiresAt !== undefined ? (
-                      r.cacheExpiresAt > now ? (
-                        <Text>
-                          <Text dimColor> │ </Text>
-                          <Text color={r.cacheExpiresAt - now < 5 * 60_000 ? 'yellow' : 'green'}>cache {untilText(r.cacheExpiresAt - now)}</Text>
-                        </Text>
-                      ) : (
-                        <Text dimColor> │ cache expired</Text>
-                      )
-                    ) : (
-                      ''
-                    )}
-                  </Text>
-                )}
-                {r.todosTotal !== undefined && r.todosTotal > 0 && (
-                  <Text wrap="truncate">
-                    {pad}
-                    <Text color="cyan">
-                      {bar(r.todosDone ?? 0, r.todosTotal)} {r.todosDone}/{r.todosTotal}
-                    </Text>
-                    {r.todoActive ? <Text dimColor> {r.todoActive}</Text> : ''}
-                  </Text>
-                )}
-                {r.lastPrompt && (
-                  <Text wrap="truncate" dimColor>
-                    {pad}› {r.lastPrompt}
-                  </Text>
-                )}
-                {r.lastReply && (
-                  <Text wrap="truncate" dimColor>
-                    {pad}‹ {r.lastReply}
-                  </Text>
-                )}
-              </Box>
-              )
-            })}
+            {g.rows.filter(r => !isActive(r)).map(r => sessionRow(r))}
+            {g.rows.some(isActive) && (
+              <Text dimColor>{'  '}↑ {g.rows.filter(isActive).length} in Active above</Text>
+            )}
           </Box>
         ))}
       </Box>

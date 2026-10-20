@@ -6,7 +6,7 @@
 
 這個 repo 本身是一個 Claude Code plugin marketplace（`claude-session-hub`），裡面有一個 plugin：**session-progress**。
 
-![Claude Session Hub 網頁：依 VS Code 視窗分組的 session，最上方是等待權限確認的 session 和Allow／Deny 按鈕](docs/hub.jpg)
+![Claude Session Hub 網頁：最上方的 Active 區是等待權限確認和執行中的 session，等待的那個有 Allow／Deny 按鈕](docs/hub.jpg)
 
 <img src="docs/side-panel.png" width="300" align="right" alt="Chrome 側邊欄：同樣的內容排成窄欄">
 
@@ -20,7 +20,7 @@
 
 | | |
 |---|---|
-| **總覽** | 依 VS Code 視窗分組列出所有 session，狀態徽章：`▶ RUNNING`、`⚠ NEEDS YOU`、`○ idle 3h12m` |
+| **總覽** | 執行中和等你回答的 session 置頂在「Active」區（等你回答的在最前，並標出所在視窗），其餘依 VS Code 視窗分組；狀態徽章：`▶ RUNNING`、`⚠ NEEDS YOU`、`○ idle 3h12m` |
 | **Context** | 用量條（`245k/1M`）、每次 prompt 的增量小圖（`▂▇▅▃█ ▲ +10.1k`）、prompt cache 剩餘時間 |
 | **用量限制** | 帳號的 5 小時和 7 天限制百分比、何時重置 |
 | **資源** | 每個 VS Code 視窗的 CPU 和記憶體，VS Code 的 GPU process 和系統 GPU 使用率 |

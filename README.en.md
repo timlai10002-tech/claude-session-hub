@@ -6,7 +6,7 @@ See, and act on, **every** Claude Code session on your Mac at once: which ones a
 
 This repo is a Claude Code plugin marketplace (`claude-session-hub`) holding one plugin: **session-progress**.
 
-![Claude Session Hub web page: sessions grouped by VS Code window, with a session waiting on a permission prompt at the top and its allow/deny buttons](docs/hub.jpg)
+![Claude Session Hub web page: the Active section on top holds a session waiting on a permission prompt, with its Allow/Deny buttons, and the running sessions](docs/hub.jpg)
 
 <img src="docs/side-panel.png" width="300" align="right" alt="Chrome side panel: the same view as a narrow column">
 
@@ -20,7 +20,7 @@ The screenshots use demo data.
 
 | | |
 |---|---|
-| **Overview** | All sessions grouped by VS Code window, with status badges: `▶ RUNNING`, `⚠ NEEDS YOU`, `○ idle 3h12m` |
+| **Overview** | Running and waiting sessions pinned in an Active section on top (waiting first, each tagged with its window); the rest grouped by VS Code window. Status badges: `▶ RUNNING`, `⚠ NEEDS YOU`, `○ idle 3h12m` |
 | **Context** | Usage bar (`245k/1M`), a sparkline of growth per prompt (`▂▇▅▃█ ▲ +10.1k`), time left on the prompt cache |
 | **Rate limits** | Your account's 5-hour and 7-day usage and when they reset |
 | **Resources** | CPU and memory per VS Code window, VS Code's GPU process, and system GPU utilisation |
