@@ -1,8 +1,20 @@
 # Claude Session Hub
 
+[English](README.en.md) | 繁體中文
+
 一次看清楚、也能操控這台 Mac 上**所有** Claude Code session：哪個在跑、哪個在等你回答、context 用了多少、它的 VS Code 視窗吃多少 CPU/GPU。在終端機、瀏覽器、Chrome 側邊欄和手機上都能用。
 
 這個 repo 本身是一個 Claude Code plugin marketplace（`tim-mods`），裡面有一個 plugin：**session-progress**。
+
+![Claude Session Hub 網頁：依 VS Code 視窗分組的 session，最上方是等待權限確認的 session 和允許／拒絕按鈕](docs/hub.jpg)
+
+<img src="docs/side-panel.png" width="300" align="right" alt="Chrome 側邊欄：同樣的內容排成窄欄">
+
+**Chrome 側邊欄**（右圖）：瀏覽任何網頁時，右側都能看到所有 session；工具列圖示的徽章顯示有幾個在等你。
+
+截圖用的是示範資料。
+
+<br clear="right">
 
 ## 功能
 
