@@ -56,8 +56,10 @@
   .where { font-size: 12px; font-weight: 600; color: var(--blue); border: 1px solid var(--line); border-radius: 5px; padding: 0 6px; white-space: nowrap; }
   .badge.done { background: var(--cyan); }
   .row.done { border-left-color: var(--cyan); }
-  .seen { font: inherit; font-size: 12px; background: none; border: 1px solid var(--cyan); color: var(--cyan); border-radius: 6px; padding: 1px 9px; cursor: pointer; }
-  .seen:hover { background: var(--cyan); color: #000; }
+  button.badge.done { font: inherit; font-size: 12px; font-weight: 700; border: 0; cursor: pointer; }
+  button.badge.done .x { opacity: .55; margin-left: 2px; }
+  button.badge.done:hover { filter: brightness(1.15); text-decoration: line-through; }
+  button.badge.done:hover .x { opacity: 1; text-decoration: none; display: inline-block; }
   .stop { font: inherit; font-size: 12px; background: none; border: 1px solid var(--line); color: var(--dim); border-radius: 6px; padding: 1px 9px; cursor: pointer; }
   .stop:hover { color: var(--red); border-color: var(--red); }
   .stop.armed { background: var(--red); border-color: var(--red); color: #fff; }
@@ -220,7 +222,8 @@ const whereOf = r => r.app === 'vscode' ? `VS Code · ${r.windowLabel ?? r.windo
 
 function rowHtml(r, where) {
   const st = shown(r)
-  const badge = st === 'done' ? `<span class="badge done">✓ DONE ${span(r.statusSince)}</span>`
+  // The DONE badge is itself the dismiss control: its ✕, pointer and hover say so.
+  const badge = st === 'done' ? `<button class="badge done" data-seen="${esc(r.sessionId)}" title="Click to dismiss: move to the idle list">✓ DONE ${span(r.statusSince)} <span class="x">✕</span></button>`
     : r.status === 'busy' ? `<span class="badge busy">RUNNING ${span(r.statusSince)}</span>`
     : r.status === 'waiting' ? `<span class="badge waiting">⚠ NEEDS YOU ${span(r.statusSince)}</span>`
     : `<span class="badge idle">○ ${esc(r.status)} ${span(r.statusSince)}</span>`
@@ -236,8 +239,6 @@ function rowHtml(r, where) {
     const armedHere = armedStop === r.sessionId
     html += `<button class="stop ${armedHere ? 'armed' : ''}" data-stop="${esc(r.sessionId)}" title="Press Esc in this session's terminal">${armedHere ? '■ Press again to stop' : '■ Stop'}</button>`
   }
-  // A finish can be dismissed: it drops to the idle list everywhere until the next run.
-  if (st === 'done') html += `<button class="seen" data-seen="${esc(r.sessionId)}" title="Move to the idle list">✓ Dismiss</button>`
   html += `</div>`
   if (r.status === 'waiting') html += askHtml(r)
   if (r.title) html += `<div class="line">${esc(r.title)}</div>`

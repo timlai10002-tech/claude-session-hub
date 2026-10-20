@@ -277,6 +277,15 @@ export const register: Register = on => {
     return (
     <Box key={r.sessionId} flexDirection="column">
       <Box key={`head-${r.sessionId}`} flexDirection="row">
+        {st === 'done' ? (
+          // The DONE badge is itself the dismiss control: its ✕ and hover say so.
+          <Text color={gutter}>{'  ┃ '}</Text>
+        ) : (
+          ''
+        )}
+        {st === 'done' ? (
+          <Button key={`seen-${r.sessionId}`} plain label={` ${BADGE.done} ${span(now, r.statusSince)} ✕ `} hover={{ backgroundColor: 'cyan', color: 'black' }} onPress={() => void dismissDone($, r)} />
+        ) : (
         <Text>
           {gutter ? <Text color={gutter}>{'  ┃ '}</Text> : '  '}
           {BADGE[st] ? (
@@ -290,6 +299,7 @@ export const register: Register = on => {
           )}
           {r.waitingFor ? <Text color="yellow" bold> {r.waitingFor}</Text> : ''}{' '}
         </Text>
+        )}
         {r.app === 'vscode' ? (
           <Button key={`open-${r.sessionId}`} plain label={`↗ ${r.name}`} dimColor={!active} hover={{ underline: true }} onPress={() => void vscodeAction($, 'focus', r)} />
         ) : (
@@ -305,11 +315,6 @@ export const register: Register = on => {
             hover={{ color: 'red' }}
             onPress={() => void pressStop($, r)}
           />
-        ) : (
-          ''
-        )}
-        {st === 'done' ? (
-          <Button key={`seen-${r.sessionId}`} plain dimColor label=" ✓ dismiss" hover={{ color: 'cyan' }} onPress={() => void dismissDone($, r)} />
         ) : (
           ''
         )}

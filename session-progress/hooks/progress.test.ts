@@ -208,7 +208,7 @@ test('a session that just finished is pinned as DONE', async ($, on) => {
   on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
   await $.command.run({ command: 'sessions', args: '' } as never)
   const ui = await $.ui.mount({ plugin: 'session-progress', surface: 'terminal', component: 'Pane', requestId: 'session-progress', props: {} as never })
-  expect(await ui.find({ text: /✓ DONE 1m/ })).toBeDefined()
+  expect(await ui.find({ text: /✓ DONE 1m ✕/ })).toBeDefined()
   expect(await ui.find({ text: /Active \(2\)/ })).toBeDefined()
   await ui.unmount()
 })
