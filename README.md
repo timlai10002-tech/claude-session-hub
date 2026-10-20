@@ -4,7 +4,7 @@
 
 一次看清楚、也能操控這台 Mac 上**所有** Claude Code session：哪個在跑、哪個在等你回答、context 用了多少、它的 VS Code 視窗吃多少 CPU/GPU。在終端機、瀏覽器、Chrome 側邊欄和手機上都能用。
 
-這個 repo 本身是一個 Claude Code plugin marketplace（`tim-mods`），裡面有一個 plugin：**session-progress**。
+這個 repo 本身是一個 Claude Code plugin marketplace（`claude-session-hub`），裡面有一個 plugin：**session-progress**。
 
 ![Claude Session Hub 網頁：依 VS Code 視窗分組的 session，最上方是等待權限確認的 session 和允許／拒絕按鈕](docs/hub.jpg)
 
@@ -45,14 +45,14 @@
 
 ```
 /plugin marketplace add timlai10002-tech/claude-session-hub
-/plugin install session-progress@tim-mods
+/plugin install session-progress@claude-session-hub
 ```
 
 如果是 clone 到本機自己開發：
 
 ```
 claude plugin marketplace add ~/claude-session-hub
-claude plugin install session-progress@tim-mods --scope user
+claude plugin install session-progress@claude-session-hub --scope user
 ```
 
 改了程式碼之後，在各 session 執行 `/reload-plugins` 就會生效。

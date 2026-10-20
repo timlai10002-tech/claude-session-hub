@@ -4,7 +4,7 @@ English | [繁體中文](README.md)
 
 See, and act on, **every** Claude Code session on your Mac at once: which ones are running, which are waiting for you, how much context each has used, and how much CPU/GPU its VS Code window is burning. Works in the terminal, the browser, a Chrome side panel, and on your phone.
 
-This repo is a Claude Code plugin marketplace (`tim-mods`) holding one plugin: **session-progress**.
+This repo is a Claude Code plugin marketplace (`claude-session-hub`) holding one plugin: **session-progress**.
 
 ![Claude Session Hub web page: sessions grouped by VS Code window, with a session waiting on a permission prompt at the top and its allow/deny buttons](docs/hub.jpg)
 
@@ -45,14 +45,14 @@ In Claude Code:
 
 ```
 /plugin marketplace add timlai10002-tech/claude-session-hub
-/plugin install session-progress@tim-mods
+/plugin install session-progress@claude-session-hub
 ```
 
 Or, from a local clone you are working on:
 
 ```
 claude plugin marketplace add ~/claude-session-hub
-claude plugin install session-progress@tim-mods --scope user
+claude plugin install session-progress@claude-session-hub --scope user
 ```
 
 After editing the code, run `/reload-plugins` in each session.

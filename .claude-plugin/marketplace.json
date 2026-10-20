@@ -1,5 +1,6 @@
 {
-  "name": "tim-mods",
+  "name": "claude-session-hub",
+  "description": "See and act on every Claude Code session on your Mac: status, context use, VS Code window CPU/GPU, answer prompts from a web page or Chrome side panel",
   "owner": {
     "name": "Tim"
   },
