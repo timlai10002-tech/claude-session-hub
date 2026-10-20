@@ -309,7 +309,20 @@ function rowHtml(r, where) {
   return html + `</div>`
 }
 
+// The page redraws every poll; a redraw between press and release would replace the
+// button and lose the click. So while a pointer is down, redraws wait for its release.
+let pressing = false, redrawLater = false
+document.addEventListener('pointerdown', () => { pressing = true }, true)
+const release = () => {
+  pressing = false
+  // After the click handlers of this press have run.
+  if (redrawLater) { redrawLater = false; setTimeout(render, 0) }
+}
+document.addEventListener('pointerup', release, true)
+document.addEventListener('pointercancel', release, true)
+
 function render() {
+  if (pressing) { redrawLater = true; return }
   const nRun = count(rows, 'busy'), nWait = count(rows, 'waiting')
   $('nRun').textContent = `● ${nRun} running`; $('nRun').classList.toggle('on', nRun > 0)
   $('nWait').textContent = `◐ ${nWait} need you`; $('nWait').classList.toggle('on', nWait > 0)
