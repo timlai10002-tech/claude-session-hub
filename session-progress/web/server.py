@@ -9,6 +9,8 @@ POST /api/answer    {"pid": n, "key": "1".."9"|"esc", "since": statusSince}
                     -> ../hooks/vscode.py key n key since: answers a waiting prompt
 POST /api/stop      {"pid": n, "since": statusSince}
                     -> ../hooks/vscode.py stop n since: Esc into a running session
+POST /api/seen      {"sessionId": id, "since": statusSince}
+                    -> ../hooks/seen.py: dismiss a session's DONE badge
 
 Binds to 127.0.0.1 only, unless LAN mode is on (SESSIONS_LAN=1 or a file named
 lan.enabled beside this one): then it listens on every interface, and a
@@ -132,8 +134,12 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.local():
             return
+        if self.headers.get("X-Sessions") != "1":
+            return self.send(403, b'{"error":"forbidden"}')
+        if self.route == "/api/seen":
+            return self.seen()
         action = {"/api/focus": "focus", "/api/close": "close", "/api/answer": "key", "/api/stop": "stop"}.get(self.route)
-        if not action or self.headers.get("X-Sessions") != "1":
+        if not action:
             return self.send(403, b'{"error":"forbidden"}')
         try:
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
@@ -145,6 +151,17 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             return self.send(400, b'{"error":"bad body"}')
         run = subprocess.run([sys.executable, "-I", os.path.join(HOOKS, "vscode.py"), *args], capture_output=True, timeout=10)
+        _cache["at"] = 0
+        self.send(200, run.stdout.strip() or b'{"ok":false}')
+
+
+    def seen(self):
+        try:
+            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
+            args = [str(body["sessionId"]), str(int(body["since"]))]
+        except Exception:
+            return self.send(400, b'{"error":"bad body"}')
+        run = subprocess.run([sys.executable, "-I", os.path.join(HOOKS, "seen.py"), *args], capture_output=True, timeout=10)
         _cache["at"] = 0
         self.send(200, run.stdout.strip() or b'{"ok":false}')
 

@@ -12,3 +12,4 @@ session-progress/vscode-extension/*.vsix
 session-progress/hooks/*.js
 session-progress/tsconfig.json
 __pycache__/
+session-progress/web/seen.json

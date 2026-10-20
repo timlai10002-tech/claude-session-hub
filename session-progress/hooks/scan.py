@@ -189,6 +189,13 @@ def summarise(path):
     return info
 
 
+# Finishes the person dismissed (seen.py): {sessionId: statusSince}.
+try:
+    with open(os.path.join(os.path.dirname(PENDING), "seen.json")) as fh:
+        SEEN = json.load(fh)
+except Exception:
+    SEEN = {}
+
 rows = []
 for f in os.listdir(REG) if os.path.isdir(REG) else []:
     if not f.endswith(".json"):
@@ -221,6 +228,9 @@ for f in os.listdir(REG) if os.path.isdir(REG) else []:
             row["pending"] = rec
     else:
         row.pop("pending", None)
+    # A finish the person dismissed: no DONE badge until the session runs again.
+    if row["status"] == "idle" and SEEN.get(row["sessionId"]) == row["statusSince"]:
+        row["seen"] = True
     rows.append(row)
 
 procs = proc_info([r["pid"] for r in rows])

@@ -234,3 +234,26 @@ test('stop needs two presses and then asks vscode.py to press Esc in that run', 
   expect(stops().map(argv => argv.slice(-3))).toEqual([['stop', '7', '1234']])
   await ui.unmount()
 })
+
+test('dismissing a DONE session records it with seen.py and unpins it', async ($, on) => {
+  const calls: string[][] = []
+  let dismissed = false
+  on('process.run', async (_$, e) => {
+    const argv = (e as { argv: string[] }).argv
+    calls.push([...argv])
+    if (argv.some(a => a.endsWith('seen.py'))) dismissed = true
+    const list = LIVE.map(r => (r.sessionId === 'd' && dismissed ? { ...r, seen: true } : r))
+    const stdout = argv.some(a => a.endsWith('seen.py')) ? '{"ok":true}' : JSON.stringify(list)
+    return { value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } } as never
+  })
+  on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
+  await $.command.run({ command: 'sessions', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'session-progress', surface: 'terminal', component: 'Pane', requestId: 'session-progress', props: {} as never })
+  expect(await ui.find({ text: /Active \(2\)/ })).toBeDefined()
+
+  await ui.press({ key: 'seen-d' })
+  const seen = calls.filter(argv => argv.some(a => a.endsWith('seen.py')))
+  expect(seen.map(argv => argv.slice(-2))).toEqual([['d', String(LIVE[1]!.statusSince)]])
+  expect(await ui.find({ text: /Active \(1\)/ })).toBeDefined()
+  await ui.unmount()
+})

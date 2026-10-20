@@ -40,6 +40,8 @@ export type SessionRow = {
   winSource?: 'extension' | 'terminals'
   /** The window's claude-terminal-focus version; absent before 0.3.1, which cannot type answers. */
   extVersion?: string
+  /** The person dismissed this finish: no DONE badge until the session runs again. */
+  seen?: boolean
   /** The whole VS Code app instance the window belongs to */
   appCpu?: number
   /** CPU of that instance's GPU process (per-process GPU time needs sudo) */

@@ -56,6 +56,8 @@
   .where { font-size: 12px; font-weight: 600; color: var(--blue); border: 1px solid var(--line); border-radius: 5px; padding: 0 6px; white-space: nowrap; }
   .badge.done { background: var(--cyan); }
   .row.done { border-left-color: var(--cyan); }
+  .seen { font: inherit; font-size: 12px; background: none; border: 1px solid var(--cyan); color: var(--cyan); border-radius: 6px; padding: 1px 9px; cursor: pointer; }
+  .seen:hover { background: var(--cyan); color: #000; }
   .stop { font: inherit; font-size: 12px; background: none; border: 1px solid var(--line); color: var(--dim); border-radius: 6px; padding: 1px 9px; cursor: pointer; }
   .stop:hover { color: var(--red); border-color: var(--red); }
   .stop.armed { background: var(--red); border-color: var(--red); color: #fff; }
@@ -208,7 +210,7 @@ function askHtml(r) {
 const isActive = r => r.status === 'busy' || r.status === 'waiting'
 // "done": idle and replied within DONE_MS, so a finish stays pinned for a while.
 const DONE_MS = 10 * 60_000
-const isDone = r => r.status === 'idle' && !!r.lastReply && Date.now() - r.statusSince < DONE_MS
+const isDone = r => r.status === 'idle' && !r.seen && !!r.lastReply && Date.now() - r.statusSince < DONE_MS
 const shown = r => isDone(r) ? 'done' : r.status
 const pinned = r => isActive(r) || isDone(r)
 const PIN_RANK = { waiting: 0, busy: 1, done: 2 }
@@ -234,6 +236,8 @@ function rowHtml(r, where) {
     const armedHere = armedStop === r.sessionId
     html += `<button class="stop ${armedHere ? 'armed' : ''}" data-stop="${esc(r.sessionId)}" title="Press Esc in this session's terminal">${armedHere ? '■ Press again to stop' : '■ Stop'}</button>`
   }
+  // A finish can be dismissed: it drops to the idle list everywhere until the next run.
+  if (st === 'done') html += `<button class="seen" data-seen="${esc(r.sessionId)}" title="Move to the idle list">✓ Dismiss</button>`
   html += `</div>`
   if (r.status === 'waiting') html += askHtml(r)
   if (r.title) html += `<div class="line">${esc(r.title)}</div>`
@@ -322,6 +326,15 @@ async function post(action, pid, extra = {}) {
 }
 
 document.addEventListener('click', e => {
+  const dn = e.target.closest('[data-seen]')
+  if (dn) {
+    const r = rows.find(x => x.sessionId === dn.dataset.seen)
+    if (!r) return
+    r.seen = true // drop it at once; the next poll confirms
+    render()
+    return fetch('api/seen', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Sessions': '1' }, body: JSON.stringify({ sessionId: r.sessionId, since: r.statusSince }) })
+      .then(() => poll()).catch(() => toast('Cannot reach the local server'))
+  }
   const sb = e.target.closest('[data-stop]')
   if (sb) {
     const sid = sb.dataset.stop

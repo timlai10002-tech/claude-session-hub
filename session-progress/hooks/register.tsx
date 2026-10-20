@@ -130,6 +130,14 @@ async function pressStop($: EngineInterface, r: SessionRow) {
   void scan($)
 }
 
+// Dismiss a DONE badge: seen.py records the finish, so every view drops it until the next run.
+async function dismissDone($: EngineInterface, r: SessionRow) {
+  const script = `${$.plugin.root}/hooks/seen.py`
+  await $.process.run(['python3', '-I', script, r.sessionId, String(r.statusSince)], { timeoutMs: 5000 }).catch(() => undefined)
+  await update($, rows, list => list.map(x => (x.sessionId === r.sessionId ? { ...x, seen: true } : x)))
+  void scan($)
+}
+
 const RELOAD_HINT = 'in that VS Code window run "Developer: Reload Window" so the claude-terminal-focus extension (0.2+) loads'
 
 async function pressClose($: EngineInterface, g: Group) {
@@ -169,7 +177,7 @@ function groupRows(list: SessionRow[]): Group[] {
 
 const STATUS_RANK: Record<string, number> = { waiting: 0, busy: 1, idle: 2 }
 const isActive = (r: SessionRow) => r.status === 'busy' || r.status === 'waiting'
-const isDone = (r: SessionRow, now: number) => r.status === 'idle' && !!r.lastReply && now - r.statusSince < DONE_MS
+const isDone = (r: SessionRow, now: number) => r.status === 'idle' && !r.seen && !!r.lastReply && now - r.statusSince < DONE_MS
 // The status a row is drawn with: its own, or "done" for a fresh finish.
 const shown = (r: SessionRow, now: number) => (isDone(r, now) ? 'done' : r.status)
 const PIN_RANK: Record<string, number> = { waiting: 0, busy: 1, done: 2 }
@@ -297,6 +305,11 @@ export const register: Register = on => {
             hover={{ color: 'red' }}
             onPress={() => void pressStop($, r)}
           />
+        ) : (
+          ''
+        )}
+        {st === 'done' ? (
+          <Button key={`seen-${r.sessionId}`} plain dimColor label=" ✓ dismiss" hover={{ color: 'cyan' }} onPress={() => void dismissDone($, r)} />
         ) : (
           ''
         )}
