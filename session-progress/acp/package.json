@@ -1,0 +1,8 @@
+{
+  "name": "session-progress-acp",
+  "private": true,
+  "description": "The ACP agent the sessions web view starts: Claude Code over the Agent Client Protocol",
+  "dependencies": {
+    "@agentclientprotocol/claude-agent-acp": "0.94.0"
+  }
+}

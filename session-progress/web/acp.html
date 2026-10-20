@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Claude ACP</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --fg: #1d1d1b; --dim: #74746f; --line: #e3e3de;
+    --run: #1f9d55; --wait: #c98a00; --wait-bg: #fff1c7; --blue: #2f6fd6; --red: #d23f3f;
+    --cyan: #138a9a; --track: #ebebe6; --user: #e8f0fd; --code: #f0f0ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615; --card: #1f1f1d; --fg: #ececea; --dim: #95958f; --line: #30302d;
+      --run: #3ccf7a; --wait: #f2b630; --wait-bg: #3a2f10; --blue: #6ea0ff; --red: #ff6b6b;
+      --cyan: #4cc7d6; --track: #30302d; --user: #1d2a40; --code: #262624;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "PingFang TC", sans-serif; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .app { display: grid; grid-template-columns: 280px 1fr; height: 100dvh; }
+  aside { border-right: 1px solid var(--line); background: var(--card); display: flex; flex-direction: column; min-height: 0; }
+  .top { padding: 14px; border-bottom: 1px solid var(--line); }
+  .top h1 { font-size: 17px; margin: 0 0 2px; }
+  .top a { color: var(--blue); font-size: 12px; text-decoration: none; }
+  .new { padding: 12px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+  .new label { font-size: 12px; color: var(--dim); }
+  .new input { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); }
+  .btn { padding: 7px 12px; border-radius: 7px; border: 1px solid var(--line); background: none; cursor: pointer; }
+  .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 600; }
+  .btn.danger:hover { color: var(--red); border-color: var(--red); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .list { overflow-y: auto; flex: 1; }
+  .item { display: block; width: 100%; text-align: left; padding: 10px 14px; border: 0; border-bottom: 1px solid var(--line); background: none; cursor: pointer; }
+  .item.sel { background: var(--bg); }
+  .item .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .m { font-size: 12px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .st { font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 4px; margin-right: 6px; color: #000; }
+  .st.running { background: var(--run); } .st.waiting { background: var(--wait); }
+  .st.idle, .st.starting { background: var(--track); color: var(--dim); } .st.error { background: var(--red); color: #fff; }
+  .empty { color: var(--dim); padding: 30px 14px; text-align: center; font-size: 13px; }
+  section.chat { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .chead { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--card); }
+  .chead .back { display: none; }
+  .chead .name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+  .chead select { padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+  .usage { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 820px; }
+  .msg.user { align-self: flex-end; background: var(--user); padding: 8px 12px; border-radius: 12px 12px 2px 12px; }
+  .msg code { font: 12.5px ui-monospace, Menlo, monospace; background: var(--code); padding: 1px 4px; border-radius: 4px; }
+  .msg.thought { color: var(--dim); font-style: italic; font-size: 13px; }
+  .tool { border: 1px solid var(--line); border-radius: 8px; background: var(--card); max-width: 820px; font-size: 13px; }
+  .tool summary { padding: 6px 10px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; list-style: none; }
+  .tool summary::-webkit-details-marker { display: none; }
+  .tool .ts { font-size: 11px; font-weight: 700; }
+  .tool .ts.completed { color: var(--run); } .tool .ts.failed { color: var(--red); } .tool .ts.in_progress, .tool .ts.pending { color: var(--wait); }
+  .tool .tt { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .tool pre { margin: 0; padding: 8px 10px; border-top: 1px solid var(--line); background: var(--code); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 300px; overflow-y: auto; font: 12px/1.45 ui-monospace, Menlo, monospace; }
+  .plan { border-left: 3px solid var(--cyan); padding: 4px 10px; font-size: 13px; max-width: 820px; }
+  .plan div.done { color: var(--dim); text-decoration: line-through; }
+  .notice { font-size: 12px; color: var(--dim); text-align: center; }
+  .ask { margin: 0 16px 10px; padding: 10px 12px; border: 1px solid var(--wait); background: var(--wait-bg); border-radius: 10px; }
+  .ask .q { font-weight: 700; }
+  .ask code { display: block; margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.45 ui-monospace, Menlo, monospace; max-height: 160px; overflow-y: auto; }
+  .ask .btn { border-color: var(--dim); }
+  .ask .opts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .ask .opts .allow_once, .ask .opts .allow_always { background: var(--run); border-color: var(--run); color: #000; font-weight: 600; }
+  .ask .opts .allow_always { background: none; color: var(--run); }
+  .ask .opts .reject_once:hover, .ask .opts .reject_always:hover { color: var(--red); border-color: var(--red); }
+  .composer { display: flex; gap: 8px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--card); }
+  .composer textarea { flex: 1; resize: none; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); min-height: 40px; max-height: 160px; }
+  .placeholder { margin: auto; color: var(--dim); text-align: center; padding: 20px; }
+  .toast { position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+  .toast.on { opacity: 1; }
+  /* Phones: one column, the list or the conversation. */
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; }
+    .app.open aside { display: none; }
+    .app:not(.open) section.chat { display: none; }
+    aside { border-right: 0; }
+    .chead .back { display: inline-block; }
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside>
+    <div class="top"><h1>Claude ACP sessions</h1><a href="./">← 回 sessions 總覽</a></div>
+    <form class="new" id="newForm">
+      <label for="cwd">在哪個資料夾開新 session</label>
+      <input id="cwd" list="cwds" placeholder="~/project" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <datalist id="cwds"></datalist>
+      <button class="btn primary" id="newBtn">＋ 開新 session</button>
+    </form>
+    <div class="list" id="list"></div>
+  </aside>
+  <section class="chat" id="chat"><div class="placeholder">選一個 session，或在左邊開新的</div></section>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const $ = id => document.getElementById(id)
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const STATUS = { starting: '啟動中', idle: '待命', running: '執行中', waiting: '等你回答', error: '錯誤', closed: '已關閉' }
+let sessions = [], current = null, state = null, available = true
+let toastTimer
+
+function toast(text) {
+  const t = $('toast'); t.textContent = text; t.classList.add('on')
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 3500)
+}
+
+async function api(path, body) {
+  const opts = body === undefined ? { cache: 'no-store' }
+    : { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Sessions': '1' }, body: JSON.stringify(body) }
+  const res = await fetch(`api/acp${path}`, opts)
+  const out = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`)
+  return out
+}
+
+function renderList() {
+  const el = $('list')
+  if (!available) { el.innerHTML = `<div class="empty">還沒安裝 claude-agent-acp：在 plugin 的 acp 資料夾執行 <code>npm install</code></div>`; return }
+  if (!sessions.length) { el.innerHTML = `<div class="empty">還沒有 ACP session</div>`; return }
+  el.innerHTML = sessions.map(s => `<button class="item ${s.id === current ? 'sel' : ''}" data-open="${s.id}">
+    <div class="t"><span class="st ${s.status}">${STATUS[s.status] ?? s.status}</span>${esc(s.title)}</div>
+    <div class="m">${esc(s.cwd)}</div></button>`).join('')
+  const nWait = sessions.filter(s => s.waiting).length
+  document.title = nWait ? `(${nWait}⚠) Claude ACP` : 'Claude ACP'
+}
+
+// Just enough markdown for replies: inline code and bold, on already-escaped text.
+const md = t => esc(t).replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
+
+function itemHtml(it) {
+  if (it.type === 'message') return `<div class="msg ${it.role}">${it.role === 'agent' ? md(it.text) : esc(it.text)}</div>`
+  if (it.type === 'tool') {
+    const body = [it.input, it.output].filter(Boolean).map(esc).join('\n\n')
+    return `<details class="tool"><summary><span class="ts ${esc(it.status)}">${esc(it.status)}</span><span class="tt">${esc(it.title || it.tool || 'tool')}</span></summary>${body ? `<pre>${body}</pre>` : ''}</details>`
+  }
+  if (it.type === 'plan') return `<div class="plan">${it.entries.map(e => `<div class="${e.status === 'completed' ? 'done' : ''}">${e.status === 'in_progress' ? '▶ ' : '• '}${esc(e.content)}</div>`).join('')}</div>`
+  return `<div class="notice">${esc(it.text)}</div>`
+}
+
+function renderChat(keepScroll) {
+  const chat = $('chat')
+  if (!state) { chat.innerHTML = `<div class="placeholder">選一個 session，或在左邊開新的</div>`; return }
+  const log = chat.querySelector('.log')
+  const atBottom = !log || log.scrollHeight - log.scrollTop - log.clientHeight < 80
+  // Keep the open/closed state of tool details across redraws.
+  const open = new Set([...chat.querySelectorAll('details[open]')].map(d => d.dataset.i))
+  const draft = chat.querySelector('textarea')?.value ?? ''
+  const focused = document.activeElement?.tagName === 'TEXTAREA'
+  const busy = state.status === 'running' || state.status === 'waiting'
+  const u = state.usage
+  let h = `<div class="chead"><button class="btn back" data-back>←</button>
+    <span class="st ${state.status}">${STATUS[state.status] ?? state.status}</span>
+    <span class="name" title="${esc(state.cwd)}">${esc(state.title)} <span class="usage">${esc(state.cwd)}</span></span>
+    ${u?.used ? `<span class="usage">ctx ${Math.round(u.used / 1000)}k/${Math.round(u.size / 1000)}k${u.cost ? ` · $${u.cost.toFixed(2)}` : ''}</span>` : ''}
+    ${state.modes?.length ? `<select id="mode" title="權限模式">${state.modes.map(m => `<option value="${esc(m.id)}" ${m.id === state.mode ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select>` : ''}
+    ${busy ? `<button class="btn" data-cancel>■ 停止</button>` : ''}
+    <button class="btn danger" data-close>關閉</button></div>`
+  h += `<div class="log">${state.items.map((it, i) => itemHtml(it).replace('<details', `<details data-i="${i}" ${open.has(String(i)) ? 'open' : ''}`)).join('')}`
+  if (state.status === 'starting') h += `<div class="notice">正在啟動 Claude…</div>`
+  if (state.status === 'error') h += `<div class="notice" style="color:var(--red)">${esc(state.error)}</div>`
+  h += `</div>`
+  const p = state.pending
+  if (p) h += `<div class="ask"><div class="q">${esc(p.title || '要允許嗎？')}</div>${p.detail ? `<code>${esc(p.detail)}</code>` : ''}
+    <div class="opts">${p.options.map(o => `<button class="btn ${esc(o.kind)}" data-option="${esc(o.id)}">${esc(o.name)}</button>`).join('')}</div></div>`
+  const canSend = state.status === 'idle'
+  h += `<form class="composer" id="composer"><textarea id="text" rows="1" placeholder="${canSend ? '給 Claude 的指示（⌘/Ctrl+Enter 送出）' : busy ? 'Claude 正在處理…' : ''}" ${state.status === 'closed' || state.status === 'error' ? 'disabled' : ''}></textarea>
+    <button class="btn primary" ${canSend ? '' : 'disabled'}>送出</button></form>`
+  chat.innerHTML = h
+  const ta = chat.querySelector('textarea'); ta.value = draft
+  if (focused) ta.focus()
+  const nl = chat.querySelector('.log')
+  if (atBottom || !keepScroll) nl.scrollTop = nl.scrollHeight
+}
+
+async function refreshList() {
+  try {
+    const out = await api('')
+    available = out.available; sessions = out.sessions
+    renderList()
+  } catch {}
+}
+
+async function refreshChat(force) {
+  if (!current) return
+  try {
+    const s = await api(`/${current}`)
+    if (force || !state || s.version !== state.version || s.id !== state.id) { state = s; renderChat(!force) }
+  } catch (e) {
+    if (String(e.message).includes('no such')) { current = null; state = null; $('app').classList.remove('open'); renderChat() }
+  }
+}
+
+function open(id) {
+  current = id; state = null
+  $('app').classList.add('open')
+  history.replaceState(null, '', `#${id}`)
+  renderList(); refreshChat(true)
+}
+
+$('newForm').addEventListener('submit', async e => {
+  e.preventDefault()
+  $('newBtn').disabled = true
+  try {
+    const s = await api('/new', { cwd: $('cwd').value.trim() || '~' })
+    await refreshList(); open(s.id)
+  } catch (err) { toast(`開不了：${err.message}`) }
+  $('newBtn').disabled = false
+})
+
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'composer') return
+  e.preventDefault()
+  const text = $('text').value.trim()
+  if (!text || state?.status !== 'idle') return
+  $('text').value = ''
+  try { await api(`/${current}/prompt`, { text }) } catch (err) { toast(err.message); $('text').value = text }
+  refreshChat(true)
+})
+
+document.addEventListener('keydown', e => {
+  if (e.target.id === 'text' && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $('composer').requestSubmit() }
+})
+
+document.addEventListener('change', async e => {
+  if (e.target.id !== 'mode') return
+  try { await api(`/${current}/mode`, { mode: e.target.value }) } catch (err) { toast(err.message) }
+  refreshChat(true)
+})
+
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-open],[data-option],[data-cancel],[data-close],[data-back]')
+  if (!t) return
+  if (t.dataset.open) return open(t.dataset.open)
+  if (t.hasAttribute('data-back')) { $('app').classList.remove('open'); current = null; state = null; history.replaceState(null, '', '#'); return renderList() }
+  try {
+    if (t.dataset.option !== undefined) {
+      t.closest('.opts').querySelectorAll('button').forEach(b => { b.disabled = true })
+      await api(`/${current}/permission`, { option: t.dataset.option })
+    } else if (t.hasAttribute('data-cancel')) {
+      await api(`/${current}/cancel`, {})
+    } else if (t.hasAttribute('data-close')) {
+      if (!confirmClose(t)) return
+      await api(`/${current}/close`, {}); current = null; state = null
+      $('app').classList.remove('open'); renderChat(); refreshList()
+      return
+    }
+  } catch (err) { toast(err.message) }
+  refreshChat(true)
+})
+
+// Two presses to close, like the VS Code close button: no browser dialogs.
+let armedClose = 0
+function confirmClose(btn) {
+  if (Date.now() - armedClose < 4000) { armedClose = 0; return true }
+  armedClose = Date.now(); btn.textContent = '再按一次關閉'
+  setTimeout(() => { if (btn.isConnected) btn.textContent = '關閉' }, 4000)
+  return false
+}
+
+// Folders of the sessions already running, as suggestions for a new one.
+fetch('api/sessions', { cache: 'no-store' }).then(r => r.json()).then(rows => {
+  $('cwds').innerHTML = [...new Set(rows.map(r => r.cwd))].sort().map(c => `<option value="${esc(c)}">`).join('')
+}).catch(() => {})
+
+refreshList().then(() => { const id = location.hash.slice(1); if (id && sessions.some(s => s.id === id)) open(id) })
+setInterval(refreshList, 3000)
+setInterval(() => refreshChat(false), 1000)
+</script>
+</body>
+</html>

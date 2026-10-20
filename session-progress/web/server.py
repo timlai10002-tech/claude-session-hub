@@ -8,6 +8,14 @@ POST /api/close     {"pid": n}  -> ../hooks/vscode.py close n
 POST /api/answer    {"pid": n, "key": "1".."9"|"esc", "since": statusSince}
                     -> ../hooks/vscode.py key n key since: answers a waiting prompt
 
+GET  /acp                      the ACP page: start and drive new Claude sessions
+GET  /api/acp                  live ACP sessions (acp.py)
+POST /api/acp/new              {"cwd": path}
+GET  /api/acp/<id>             one session's conversation and waiting permission
+POST /api/acp/<id>/prompt      {"text": ...}
+POST /api/acp/<id>/permission  {"option": optionId | null to refuse}
+POST /api/acp/<id>/cancel | /mode {"mode": ...} | /close
+
 Binds to 127.0.0.1 only, unless LAN mode is on (SESSIONS_LAN=1 or a file named
 lan.enabled beside this one): then it listens on every interface, and a
 request from another machine must come under /k/<key>/ (the key in lan.key,
@@ -17,7 +25,7 @@ POSTs need the X-Sessions header, which a page on another origin
 cannot send without a CORS preflight this server never grants, and the Host
 header must be localhost or an IP literal, which stops DNS rebinding.
 """
-import ipaddress, json, os, secrets, subprocess, sys, threading, time
+import importlib.util, ipaddress, json, os, secrets, subprocess, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -56,6 +64,12 @@ def ip_host(host):
         return False
     return port == str(PORT)
 
+# Run with -I, so this folder is not on sys.path: load acp.py by its path.
+_spec = importlib.util.spec_from_file_location("acp", os.path.join(HERE, "acp.py"))
+acp = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(acp)
+ACP = acp.Manager()
+
 _cache = {"at": 0.0, "body": b"[]"}
 _lock = threading.Lock()
 
@@ -80,6 +94,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
+
+    def json(self, code, obj):
+        self.send(code, json.dumps(obj, ensure_ascii=False).encode())
 
     def from_this_mac(self):
         return ipaddress.ip_address(self.client_address[0]).is_loopback
@@ -113,6 +130,14 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             with open(os.path.join(HERE, "index.html"), "rb") as fh:
                 self.send(200, fh.read(), "text/html; charset=utf-8")
+        elif path in ("/acp", "/acp.html"):
+            with open(os.path.join(HERE, "acp.html"), "rb") as fh:
+                self.send(200, fh.read(), "text/html; charset=utf-8")
+        elif path == "/api/acp":
+            self.json(200, {"available": ACP.available(), "sessions": ACP.list()})
+        elif path.startswith("/api/acp/"):
+            s = ACP.get(path[len("/api/acp/"):])
+            self.json(200, s.state()) if s else self.json(404, {"error": "no such session"})
         elif path == "/api/sessions":
             self.send(200, scan())
         elif path == "/api/limits":
@@ -130,8 +155,12 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.local():
             return
+        if self.headers.get("X-Sessions") != "1":
+            return self.send(403, b'{"error":"forbidden"}')
+        if self.route.startswith("/api/acp/"):
+            return self.acp_post(self.route[len("/api/acp/"):])
         action = {"/api/focus": "focus", "/api/close": "close", "/api/answer": "key"}.get(self.route)
-        if not action or self.headers.get("X-Sessions") != "1":
+        if not action:
             return self.send(403, b'{"error":"forbidden"}')
         try:
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
@@ -145,5 +174,42 @@ class Handler(BaseHTTPRequestHandler):
         self.send(200, run.stdout.strip() or b'{"ok":false}')
 
 
+    def acp_post(self, rest):
+        try:
+            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+        except ValueError:
+            return self.json(400, {"error": "bad body"})
+        if rest == "new":
+            if not ACP.available():
+                return self.json(503, {"error": "claude-agent-acp is not installed: run npm install in the plugin's acp folder"})
+            try:
+                return self.json(200, ACP.create(str(body.get("cwd") or "~")).summary())
+            except ValueError as exc:
+                return self.json(400, {"error": str(exc)})
+        sid, _, verb = rest.partition("/")
+        s = ACP.get(sid)
+        if not s:
+            return self.json(404, {"error": "no such session"})
+        if verb == "prompt":
+            text = str(body.get("text") or "").strip()
+            ok = bool(text) and s.prompt(text)
+        elif verb == "permission":
+            opt = body.get("option")
+            ok = s.answer_pending(None if opt is None else str(opt))
+        elif verb == "cancel":
+            s.cancel()
+            ok = True
+        elif verb == "mode":
+            ok = s.set_mode(str(body.get("mode")))
+        elif verb == "close":
+            ok = ACP.close(sid)
+        else:
+            return self.json(404, {"error": "not found"})
+        self.json(200, {"ok": ok})
+
+
 if __name__ == "__main__":
-    ThreadingHTTPServer(("0.0.0.0" if LAN else "127.0.0.1", PORT), Handler).serve_forever()
+    try:
+        ThreadingHTTPServer(("0.0.0.0" if LAN else "127.0.0.1", PORT), Handler).serve_forever()
+    finally:
+        ACP.shutdown()

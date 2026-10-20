@@ -11,7 +11,7 @@ DIST = os.path.join(PLUGIN, "dist")
 NAME = "claude-sessions-chrome"
 
 EXTENSION_FILES = ["manifest.json", "background.js", "panel.html", "panel.js", "icon16.png", "icon48.png", "icon128.png"]
-SERVER_FILES = [("web", "server.py"), ("web", "index.html"), ("hooks", "scan.py"), ("hooks", "vscode.py")]
+SERVER_FILES = [("web", "server.py"), ("web", "index.html"), ("web", "acp.py"), ("web", "acp.html"), ("hooks", "scan.py"), ("hooks", "vscode.py")]
 
 with tempfile.TemporaryDirectory() as tmp:
     root = os.path.join(tmp, NAME)
