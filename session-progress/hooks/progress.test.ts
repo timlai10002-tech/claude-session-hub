@@ -185,6 +185,33 @@ test('a tool call is recorded for the web view before it runs', async ($, on) =>
   expect(body.input).toEqual({ command: 'rm -rf build', description: 'Clean' })
 })
 
+test('each prompt is summarised in a few words for the voice; slash commands are not', async ($, on) => {
+  const writes: { path: string; text: string }[] = []
+  const asked: string[] = []
+  on('fs.write', async (_$, e) => {
+    writes.push(e as never)
+    return { value: undefined } as never
+  })
+  on('session.id', async () => ({ value: 'sid-1' }) as never)
+  on('model.complete', async (_$, e) => {
+    asked.push(String((e as { prompt: unknown }).prompt))
+    return { value: { isAnswered: true, text: '"Review fixed reply sentences."\n', usage: {} } } as never
+  })
+  on('prompt.submit', async (_$, e) => ({ text: (e as { text: string }).text }) as never)
+
+  await $.prompt.submit({ text: '/sessions-web' } as never)
+  for (let i = 0; i < 20; i++) await Promise.resolve()
+  expect(asked).toHaveLength(0)
+
+  await $.prompt.submit({ text: '幫我修好結帳按鈕' } as never)
+  for (let i = 0; i < 20; i++) await Promise.resolve()
+  expect(asked).toHaveLength(1)
+  expect(asked[0]).toContain('幫我修好結帳按鈕')
+  for (let i = 0; i < 50 && !writes.length; i++) await Promise.resolve()
+  const rec = writes.find(w => w.path.endsWith('/web/topics/sid-1.json'))
+  expect(JSON.parse(rec!.text).topic).toBe('Review fixed reply sentences')
+})
+
 test('running and waiting sessions are pinned in an Active section, tagged with their window', async ($, on) => {
   on('process.run', async () => ({ value: { exitCode: 0, stdout: JSON.stringify(FAKE), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }) as never)
   on('ui.open', async () => ({ value: { isPlaced: true } }) as never)

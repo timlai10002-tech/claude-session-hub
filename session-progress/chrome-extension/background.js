@@ -76,7 +76,7 @@ async function notifyChanges(rows) {
 // The project folder and what the session is about; names like web-shop-c0 mean nothing to anyone.
 function label(r) {
   const project = (r.cwd || '').replace(/\/+$/, '').split('/').pop().replace(/^~$/, '') || 'home'
-  const topic = String(r.title || r.lastPrompt || '').split(/\s+/).join(' ').trim()
+  const topic = String(r.topic || r.title || r.lastPrompt || '').split(/\s+/).join(' ').trim()
   return topic ? `${project} · ${topic.length > 40 ? topic.slice(0, 40) + '…' : topic}` : project
 }
 

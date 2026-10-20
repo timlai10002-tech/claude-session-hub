@@ -66,6 +66,7 @@
   .toggle span, .toggle > label { flex: 1; cursor: pointer; }
   .toggle select.sound { font: inherit; font-size: 12px; padding: 2px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
   .toggle small { display: block; color: var(--dim); font-size: 12px; }
+  .toggle small.eg { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; margin-top: 2px; opacity: .85; }
   .toggle input { appearance: none; width: 34px; height: 20px; border-radius: 999px; background: var(--track); position: relative; cursor: pointer; transition: background .15s; flex: none; }
   .toggle input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
   .toggle input:checked { background: var(--run); }
@@ -176,6 +177,7 @@
     </div>
     <div class="sgroup">
       <div class="slabel">Show on the page</div>
+      <div class="snote">Turn off what you don’t need; each switch hides that piece from every session.</div>
       <div id="toggles"></div>
     </div>
     <div class="snote">Saved in this browser. The Chrome side panel uses the same settings.</div>
@@ -465,15 +467,16 @@ function tick() {
 
 // Settings (gear): theme, and which small pieces of each row the page shows.
 // Kept in localStorage; when storage is unavailable everything stays on.
+// [id, name, what it tells you, what it looks like on the page]
 const PIECES = [
-  ['limits', '5h / 7d usage limits', '5h ▬ 34% · 2h21'],
-  ['stats', 'Window CPU / memory / GPU', 'CPU 1.2% · 352MB │ GPU …'],
-  ['ctx', 'Context bar', '▬▬ ctx 86k/200k (43%)'],
-  ['growth', 'Context growth sparkline', '▄▁▂▂█ ▲ +36.6k'],
-  ['cache', 'Prompt cache time', 'cache 4 min · cache expired'],
-  ['todo', 'Todo progress', '▬▬ todo 5/8'],
-  ['now', 'Current step', 'now Raising contrast…'],
-  ['convo', 'Last prompt and reply', '› … ‹ …'],
+  ['limits', 'Usage limits', 'How much of your account’s 5-hour and 7-day allowance is used, and when each resets. Top of the page.', '5h ▬ 34% · 2h21'],
+  ['stats', 'Window CPU, memory and GPU', 'Under each VS Code window’s name: that window’s CPU and memory, all of VS Code’s CPU, its GPU process and the whole Mac’s GPU use.', 'window CPU 1.2% · 352MB │ VS Code CPU 10% · GPU proc 0% · GPU 18% (system)'],
+  ['ctx', 'Context used', 'How full the session’s context window is. Near 100% it gets compacted.', '▬▬ ctx 86k/200k (43%)'],
+  ['growth', 'Context growth', 'A small chart of how much context each prompt added, and the last one’s size.', '▄▁▂▂█ ▲ +36.6k'],
+  ['cache', 'Prompt cache time left', 'Minutes until the prompt cache expires. Answering before then is faster and cheaper.', 'cache 4 min · cache expired'],
+  ['todo', 'Todo progress', 'How many items of the session’s todo list are done.', '▬▬ todo 5/8'],
+  ['now', 'Current step', 'Running sessions only: the todo item it is on, or else the last tool it used.', 'now Raising contrast…'],
+  ['convo', 'Last prompt and reply', 'The last thing you asked (›) and the start of Claude’s last answer (‹).', '› fix the login bug  ‹ Done, the token…'],
 ]
 function hidden() {
   try { return new Set(JSON.parse(localStorage.getItem('hide') || '[]')) } catch { return new Set() }
@@ -487,8 +490,8 @@ function setTheme(t) {
   try { t === 'auto' ? localStorage.removeItem('theme') : localStorage.setItem('theme', t) } catch {}
   document.querySelectorAll('[data-theme-pick]').forEach(b => b.classList.toggle('on', b.dataset.themePick === t))
 }
-$('toggles').innerHTML = PIECES.map(([id, label, sample]) =>
-  `<label class="toggle"><span>${esc(label)}<small>${esc(sample)}</small></span><input type="checkbox" data-piece="${id}"></label>`).join('')
+$('toggles').innerHTML = PIECES.map(([id, label, what, sample]) =>
+  `<label class="toggle"><span>${esc(label)}<small>${esc(what)}</small><small class="eg">${esc(sample)}</small></span><input type="checkbox" data-piece="${id}"></label>`).join('')
 // Alerts live on the server (one announcer however many pages are open).
 // [id, label, sample, sound-name key]: a row with a sound key also gets a sound picker.
 const ALERTS = [

@@ -42,6 +42,8 @@ export type SessionRow = {
   extVersion?: string
   /** The person dismissed this finish: no DONE badge until the session runs again. */
   seen?: boolean
+  /** A few English words summarising the latest prompt (prompt.submit, the small model). */
+  topic?: string
   /** Until when a finish shows as DONE (epoch ms), from the DONE setting; absent means 10 minutes. */
   doneUntil?: number
   /** The whole VS Code app instance the window belongs to */

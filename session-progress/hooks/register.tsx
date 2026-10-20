@@ -198,6 +198,21 @@ async function recordCall($: EngineInterface, e: { tool: string; agentId?: strin
   await $.fs.write(`${$.plugin.root}/web/pending/${sid}.json`, JSON.stringify({ ts: Date.now(), tool: e.tool, input }))
 }
 
+// A few English words for what the person just asked, so the hub's voice can say it:
+// summarised by the small model and kept in web/topics/<session>.json for scan.py.
+const TOPIC_ASK = 'Summarise this request to a coding assistant in 3 to 6 plain English words, ' +
+  'like a task title. Reply with the words only: no quotes, no punctuation at the end.\n\nRequest:\n'
+
+async function recordTopic($: EngineInterface, text: string) {
+  const ask = text.trim()
+  if (!ask || ask.startsWith('/')) return // a slash command is not a task
+  const r = await $.model.complete({ model: 'haiku', prompt: TOPIC_ASK + ask.slice(0, 2000), maxTokens: 30 })
+  const topic = r.isAnswered ? r.text.split('\n')[0]!.trim().replace(/^["'“\s]+|["'”.。\s]+$/g, '').slice(0, 60) : ''
+  if (!topic) return
+  const sid = await $.session.id()
+  await $.fs.write(`${$.plugin.root}/web/topics/${sid}.json`, JSON.stringify({ ts: Date.now(), topic }))
+}
+
 export const register: Register = on => {
   let timer: { cancel: () => void } | undefined
 
@@ -220,6 +235,11 @@ export const register: Register = on => {
 
   on('tool.call', ($, e, next) => {
     void recordCall($, e as unknown as Parameters<typeof recordCall>[1]).catch(() => undefined)
+    return next(e)
+  })
+
+  on('prompt.submit', ($, e, next) => {
+    void recordTopic($, e.text).catch(() => undefined)
     return next(e)
   })
 

@@ -5,6 +5,7 @@ session-progress/web/lan.enabled
 session-progress/web/limits.json
 session-progress/web/server.log
 session-progress/web/pending/
+session-progress/web/topics/
 # Build outputs (rebuild with make_bundle.py / make_vsix.py)
 session-progress/dist/
 session-progress/vscode-extension/*.vsix

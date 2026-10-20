@@ -121,10 +121,11 @@ def play(name):
 
 
 def who(r):
-    """What to call a session out loud: its project folder and what it is about (the
-    session title, or its last prompt), since nobody remembers names like web-shop-c0."""
+    """What to call a session out loud: its project folder and what it is doing (a short
+    summary of the latest prompt, else the session title or the prompt itself), since
+    nobody remembers names like web-shop-c0."""
     project = os.path.basename((r.get("cwd") or "").rstrip("/")).strip("~") or "home"
-    topic = " ".join(str(r.get("title") or r.get("lastPrompt") or "").split())
+    topic = " ".join(str(r.get("topic") or r.get("title") or r.get("lastPrompt") or "").split())
     return project, (topic[:40] + "…") if len(topic) > 40 else topic
 
 

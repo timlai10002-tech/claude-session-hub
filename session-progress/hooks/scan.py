@@ -189,6 +189,12 @@ def summarise(path):
     return info
 
 
+TOPICS = os.path.join(os.path.dirname(PENDING), "topics")
+try:
+    os.chmod(TOPICS, 0o700)  # summaries of prompts: this user's alone
+except OSError:
+    pass
+
 # Finishes the person dismissed (seen.py): {sessionId: statusSince}.
 try:
     with open(os.path.join(os.path.dirname(PENDING), "seen.json")) as fh:
@@ -237,6 +243,14 @@ for f in os.listdir(REG) if os.path.isdir(REG) else []:
             row["pending"] = rec
     else:
         row.pop("pending", None)
+    # The plugin's few-word summary of the latest prompt (register.tsx), for the voice.
+    try:
+        with open(os.path.join(TOPICS, f"{row['sessionId']}.json")) as fh:
+            topic = json.load(fh).get("topic")
+        if isinstance(topic, str) and topic.strip():
+            row["topic"] = " ".join(topic.split())[:60]
+    except Exception:
+        pass
     # A finish the person dismissed: no DONE badge until the session runs again.
     if row["status"] == "idle" and SEEN.get(row["sessionId"]) == row["statusSince"]:
         row["seen"] = True
