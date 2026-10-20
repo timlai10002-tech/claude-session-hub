@@ -6,13 +6,13 @@
 
 這個 repo 本身是一個 Claude Code plugin marketplace（`claude-session-hub`），裡面有一個 plugin：**session-progress**。
 
-![Claude Session Hub 網頁：依 VS Code 視窗分組的 session，最上方是等待權限確認的 session 和允許／拒絕按鈕](docs/hub.jpg)
+![Claude Session Hub 網頁：依 VS Code 視窗分組的 session，最上方是等待權限確認的 session 和Allow／Deny 按鈕](docs/hub.jpg)
 
 <img src="docs/side-panel.png" width="300" align="right" alt="Chrome 側邊欄：同樣的內容排成窄欄">
 
 **Chrome 側邊欄**（右圖）：瀏覽任何網頁時，右側都能看到所有 session；工具列圖示的徽章顯示有幾個在等你。
 
-截圖用的是示範資料。
+截圖用的是示範資料。介面文字一律是英文。
 
 <br clear="right">
 
@@ -25,7 +25,7 @@
 | **用量限制** | 帳號的 5 小時和 7 天限制百分比、何時重置 |
 | **資源** | 每個 VS Code 視窗的 CPU 和記憶體，VS Code 的 GPU process 和系統 GPU 使用率 |
 | **跳轉／關閉** | 點 session 名稱就跳到那個 VS Code 視窗和 terminal；按兩次「✕ close」關閉視窗 |
-| **回答詢問** | session 卡在權限詢問或問題時，直接在 web 上點「允許／拒絕」或選答案 |
+| **回答詢問** | session 卡在權限詢問或問題時，直接在 web 上點「Allow／Deny」或選答案 |
 | **區網／手機** | 選用；只有帶密鑰的網址才連得進來 |
 | **Chrome 側邊欄** | 瀏覽器右側常駐面板，工具列徽章顯示等待中和執行中的 session 數 |
 | **深色／淺色** | 預設跟著 macOS，標題旁的按鈕可以切換自動、淺色、深色，每個瀏覽器各自記住 |

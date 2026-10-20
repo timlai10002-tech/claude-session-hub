@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -109,7 +109,7 @@
 <main>
   <header>
     <h1>Claude Session Hub</h1>
-    <button class="theme" id="theme" title="切換深色／淺色"></button>
+    <button class="theme" id="theme" title="Switch light / dark theme"></button>
     <span class="pill run" id="nRun"></span>
     <span class="pill wait" id="nWait"></span>
     <span class="pill" id="nIdle"></span>
@@ -121,7 +121,7 @@
 <div class="toast" id="toast"></div>
 <script>
 const POLL_MS = 3000, CONFIRM_MS = 5000
-const RELOAD_HINT = '在那個 VS Code 視窗執行「Developer: Reload Window」，載入新版 claude-terminal-focus 擴充（0.2 以上）'
+const RELOAD_HINT = 'Run "Developer: Reload Window" in that VS Code window to load claude-terminal-focus 0.2 or later'
 let rows = [], limits = { at: 0, list: [] }, lastOk = 0, armed = '', armTimer = 0
 
 const $ = id => document.getElementById(id)
@@ -172,27 +172,27 @@ function meter(ratio, color) {
 // menu line in the terminal, esc declines.
 function choices(p) {
   if (p?.kind === 'question') return p.options
-    ? [...p.options.map((o, i) => [String(i + 1), `${i + 1}. ${o}`, '']), ['esc', '取消', 'no']]
+    ? [...p.options.map((o, i) => [String(i + 1), `${i + 1}. ${o}`, '']), ['esc', 'Cancel', 'no']]
     : null
-  if (p?.kind === 'plan') return [['1', '核准，自動接受編輯', 'yes'], ['2', '核准，逐一確認', ''], ['esc', '繼續規劃', 'no']]
-  return [['1', '允許', 'yes'], ['2', '允許且不再詢問', ''], ['esc', '拒絕', 'no']]
+  if (p?.kind === 'plan') return [['1', 'Approve, auto-accept edits', 'yes'], ['2', 'Approve, review each edit', ''], ['esc', 'Keep planning', 'no']]
+  return [['1', 'Allow', 'yes'], ['2', "Allow, don't ask again", ''], ['esc', 'Deny', 'no']]
 }
 
 function askHtml(r) {
   const p = r.pending
-  const what = !p ? esc(r.waitingFor || '等待回應')
-    : p.kind === 'question' ? `<b>Claude 問</b>${esc(p.detail)}`
-    : p.kind === 'plan' ? `<b>核准計畫？</b>${esc(p.detail)}`
-    : `<b>允許 ${esc(p.tool)}？</b>${p.detail ? `<code>${esc(p.detail)}</code>` : ''}`
+  const what = !p ? esc(r.waitingFor || 'Waiting for you')
+    : p.kind === 'question' ? `<b>Claude asks</b>${esc(p.detail)}`
+    : p.kind === 'plan' ? `<b>Approve the plan?</b>${esc(p.detail)}`
+    : `<b>Allow ${esc(p.tool)}?</b>${p.detail ? `<code>${esc(p.detail)}</code>` : ''}`
   const list = choices(p)
   // Typing the answer needs the window's extension at 0.3.1 or later (it reports a version).
   const can = r.app === 'vscode' && !!r.extVersion
   let h = `<div class="ask"><div class="q">${what}</div>`
   if (list) h += `<div class="opts">${list.map(([k, label, cls]) => `<button class="${cls}" data-answer="${r.pid}" data-key="${k}" data-since="${r.statusSince}" ${can ? '' : 'disabled'}>${esc(label)}</button>`).join('')}</div>`
-  else h += `<div class="note">這題有多個問題或可複選，請到 terminal 回答</div>`
-  if (r.app !== 'vscode') h += `<div class="note">只有 VS Code terminal 裡的 session 能從這裡回答</div>`
-  else if (!r.extVersion) h += `<div class="note">這個 VS Code 視窗的擴充是舊版，還不能從這裡回答：在那個視窗執行「Developer: Reload Window」</div>`
-  else if (!p) h += `<div class="note">看不到詢問內容（session 重新載入 plugin 後就有），選項是一般權限詢問的順序</div>`
+  else h += `<div class="note">Several questions or multiple choice: answer in the terminal</div>`
+  if (r.app !== 'vscode') h += `<div class="note">Only sessions in a VS Code terminal can be answered from here</div>`
+  else if (!r.extVersion) h += `<div class="note">This VS Code window runs an old extension and can't be answered from here yet: run "Developer: Reload Window" in it</div>`
+  else if (!p) h += `<div class="note">The question isn't known (it shows once the session runs /reload-plugins); the buttons follow the usual permission menu</div>`
   return h + `</div>`
 }
 
@@ -201,7 +201,7 @@ function rowHtml(r) {
     : r.status === 'waiting' ? `<span class="badge waiting">⚠ NEEDS YOU ${span(r.statusSince)}</span>`
     : `<span class="badge idle">○ ${esc(r.status)} ${span(r.statusSince)}</span>`
   const name = r.app === 'vscode'
-    ? `<button class="name" data-focus="${r.pid}" title="切到這個 VS Code terminal">↗ ${esc(r.name)}</button>`
+    ? `<button class="name" data-focus="${r.pid}" title="Go to this VS Code terminal">↗ ${esc(r.name)}</button>`
     : `<span class="name">${esc(r.name)}</span>`
   let html = `<div class="row ${esc(r.status)}"><div class="rhead">${badge}`
   if (r.waitingFor) html += `<span class="waitfor">${esc(r.waitingFor)}</span>`
@@ -214,7 +214,7 @@ function rowHtml(r) {
     const k = r.ctxTokens / r.ctxMax
     const c = k >= .8 ? 'var(--red)' : k >= .5 ? 'var(--wait)' : 'var(--run)'
     html += `<div class="line">${meter(k, c)}<span class="num">ctx ${tokens(r.ctxTokens)}/${tokens(r.ctxMax)} (${Math.round(k * 100)}%)</span>`
-    if (r.ctxGrowth?.length) html += `<span class="spark" title="每次 prompt 的 context 增量">${spark(r.ctxGrowth)}</span> <span class="num">${signed(r.ctxGrowth.at(-1))}</span>`
+    if (r.ctxGrowth?.length) html += `<span class="spark" title="Context growth per prompt">${spark(r.ctxGrowth)}</span> <span class="num">${signed(r.ctxGrowth.at(-1))}</span>`
     if (r.cacheExpiresAt) {
       const left = r.cacheExpiresAt - Date.now()
       html += left > 0 ? `<span class="cache" style="color:${left < 300000 ? 'var(--wait)' : 'var(--run)'}">cache ${until(left)}</span>` : `<span class="cache num">cache expired</span>`
@@ -253,7 +253,7 @@ function render() {
     if (run) h += `<span class="gcount run">● ${run} running</span>`
     if (wait) h += `<span class="gcount wait">◐ ${wait} need you</span>`
     const canClose = s?.winSource === 'extension'
-    if (g.key !== 'other') h += `<button class="close ${armed === g.key ? 'armed' : ''}" data-close="${esc(g.key)}" title="${canClose ? '關閉這個 VS Code 視窗' : RELOAD_HINT}">${!canClose ? '✕ close（需先 reload 視窗）' : armed === g.key ? '再按一次關閉視窗' : '✕ close'}</button>`
+    if (g.key !== 'other') h += `<button class="close ${armed === g.key ? 'armed' : ''}" data-close="${esc(g.key)}" title="${canClose ? 'Close this VS Code window' : RELOAD_HINT}">${!canClose ? '✕ close (reload window first)' : armed === g.key ? 'Press again to close' : '✕ close'}</button>`
     h += `</div>`
     if (s) h += `<div class="stats">${s.winSource === 'terminals' ? 'claude terminals' : 'window'} CPU ${s.winCpu}% · ${s.winMemMB}MB │ VS Code CPU ${s.appCpu}% · GPU proc ${s.gpuProcCpu}%${s.gpuUtil !== undefined ? ` · GPU ${s.gpuUtil}% (system)` : ''}</div>`
     return h + g.rows.map(rowHtml).join('') + `</section>`
@@ -265,16 +265,16 @@ async function post(action, pid, extra = {}) {
     const res = await fetch(`api/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Sessions': '1' }, body: JSON.stringify({ pid, ...extra }) })
     const out = await res.json()
     if (action === 'answer') {
-      if (out.ok) toast('已送出')
-      else if (out.reason === 'not-waiting') toast('這個 session 已經不在等了，畫面會更新')
-      else if (out.reason === 'old-extension') toast('VS Code 擴充太舊，沒送出：在那個視窗執行「Developer: Reload Window」，載入 claude-terminal-focus 0.3.1 以上')
-      else toast('VS Code 視窗沒有回應：claude-terminal-focus 擴充裝了嗎？視窗 reload 過嗎？')
+      if (out.ok) toast('Sent')
+      else if (out.reason === 'not-waiting') toast('That session is no longer waiting; refreshing')
+      else if (out.reason === 'old-extension') toast('Not sent, the VS Code extension is too old: run "Developer: Reload Window" in that window to load claude-terminal-focus 0.3.1 or later')
+      else toast('The VS Code window did not answer: is claude-terminal-focus installed, and has the window been reloaded?')
       return setTimeout(poll, 600)
     }
-    if (out.reason === 'old-extension') toast(`這個視窗的擴充是舊版，只會跳轉不會關閉：${RELOAD_HINT}`)
-    else if (!out.ok) toast('VS Code 視窗沒有回應：claude-terminal-focus 擴充裝了嗎？視窗 reload 過嗎？')
-    else if (action === 'close') { toast('已關閉視窗'); poll() }
-  } catch { toast('連不到本機伺服器') }
+    if (out.reason === 'old-extension') toast(`This window runs an old extension that only focuses, never closes: ${RELOAD_HINT}`)
+    else if (!out.ok) toast('The VS Code window did not answer: is claude-terminal-focus installed, and has the window been reloaded?')
+    else if (action === 'close') { toast('Window closed'); poll() }
+  } catch { toast('Cannot reach the local server') }
 }
 
 document.addEventListener('click', e => {
@@ -289,7 +289,7 @@ document.addEventListener('click', e => {
   if (!c) return
   const key = c.dataset.close
   const g0 = groupRows(rows).find(g => g.key === key)
-  if (g0?.rows.find(r => r.winCpu !== undefined)?.winSource !== 'extension') return toast(`還不能關閉：${RELOAD_HINT}`)
+  if (g0?.rows.find(r => r.winCpu !== undefined)?.winSource !== 'extension') return toast(`Can't close yet: ${RELOAD_HINT}`)
   if (armed !== key) {
     armed = key; clearTimeout(armTimer)
     armTimer = setTimeout(() => { armed = ''; render() }, CONFIRM_MS)
@@ -314,12 +314,12 @@ async function poll() {
 
 function tick() {
   const u = $('updated'), stale = Date.now() - lastOk > POLL_MS * 3
-  u.textContent = lastOk ? (stale ? `伺服器沒回應 · 最後更新 ${ago(lastOk)} 前` : `updated ${ago(lastOk)} ago`) : '載入中…'
+  u.textContent = lastOk ? (stale ? `server not responding · last update ${ago(lastOk)} ago` : `updated ${ago(lastOk)} ago`) : 'loading…'
   u.classList.toggle('stale', stale && lastOk > 0)
 }
 
 // Theme button cycles auto (follow macOS) → light → dark.
-const THEMES = { auto: '◐ 自動', light: '☀︎ 淺色', dark: '☾ 深色' }
+const THEMES = { auto: '◐ Auto', light: '☀︎ Light', dark: '☾ Dark' }
 function setTheme(t) {
   if (t === 'auto') delete document.documentElement.dataset.theme
   else document.documentElement.dataset.theme = t

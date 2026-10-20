@@ -12,7 +12,7 @@ This repo is a Claude Code plugin marketplace (`claude-session-hub`) holding one
 
 **Chrome side panel** (right): every session stays in view beside whatever page you are on, and the toolbar badge shows how many are waiting for you.
 
-The screenshots use demo data. The UI text is in Traditional Chinese (允許 = Allow, 允許且不再詢問 = Allow and don't ask again, 拒絕 = Deny).
+The screenshots use demo data.
 
 <br clear="right">
 
