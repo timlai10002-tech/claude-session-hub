@@ -487,9 +487,9 @@ $('toggles').innerHTML = PIECES.map(([id, label, sample]) =>
 // [id, label, sample, sound-name key]: a row with a sound key also gets a sound picker.
 const ALERTS = [
   ['doneSound', 'Chime when a session finishes', 'a macOS system sound', 'doneSoundName'],
-  ['doneSpeak', 'Speak when a session finishes', '“web shop Fix the checkout button，完成了”'],
+  ['doneSpeak', 'Speak when a session finishes', '“web shop Fix the checkout button is done”'],
   ['needSound', 'Chime when a session needs you', 'a macOS system sound', 'needSoundName'],
-  ['needSpeak', 'Speak when a session needs you', '“web shop Fix the checkout button，需要你”'],
+  ['needSpeak', 'Speak when a session needs you', '“web shop Fix the checkout button needs you”'],
 ]
 // Sound rows are a div, not a label: a label would hand clicks on its picker to the switch.
 $('alertToggles').innerHTML = ALERTS.map(([id, label, sample, soundKey]) => soundKey

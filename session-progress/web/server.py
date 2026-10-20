@@ -128,13 +128,16 @@ def alert(kind, project, topic):
     """Chime and/or speak one event, as the settings say. Text goes as arguments, never code."""
     on = alert_settings()
     # The chime first, then the voice, one after the other, off the watcher's thread.
-    # Always spoken in Mandarin (Meijia), which reads English words in a title too.
+    # Said in English; a title with Chinese in it needs a voice that can read it (Meijia),
+    # which reads the English words too.
     def sound_then_voice():
         if on[f"{kind}Sound"]:
             play(on[f"{kind}SoundName"])
         if on[f"{kind}Speak"]:
             spoken = " ".join(x for x in (project.replace("-", " ").replace("_", " "), topic.rstrip("…")) if x)
-            say = ["say", "-v", "Meijia", f"{spoken}，完成了" if kind == "done" else f"{spoken}，需要你"]
+            line = f"{spoken} is done" if kind == "done" else f"{spoken} needs you"
+            cjk = any("\u3400" <= ch <= "\u9fff" or "\uf900" <= ch <= "\ufaff" for ch in line)
+            say = ["say", *(["-v", "Meijia"] if cjk else []), line]
             subprocess.run(say, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
     threading.Thread(target=sound_then_voice, daemon=True).start()
 

@@ -31,7 +31,7 @@
 | **區網／手機** | 選用；只有帶密鑰的網址才連得進來 |
 | **Chrome 側邊欄** | 瀏覽器右側常駐面板，工具列徽章顯示等待中和執行中的 session 數 |
 | **通知** | session 等你回答或跑完時跳 macOS 通知，點通知直接跳到那個 VS Code terminal；在工具列圖示按右鍵可以分別關掉兩種通知 |
-| **提示音和語音** | session 跑完時由本機伺服器先播一聲系統提示音（Glass、Ping、Hero 等，可各自選），再用 macOS `say` 唸出專案資料夾和這個 session 在做什麼（它的標題），例如「kitt nav 固定回覆句子列表，完成了」，一律用中文語音 Meijia；也可以開啟「需要你」時提醒。在 ⚙ 設定頁的 Alerts on this Mac 分別開關，有試聽按鈕。伺服器在跑時才會提醒 |
+| **提示音和語音** | session 跑完時由本機伺服器先播一聲系統提示音（Glass、Ping、Hero 等，可各自選），再用 macOS `say` 唸出專案資料夾和這個 session 在做什麼（它的標題），例如「web shop Fix the checkout button is done」，用英文唸；標題有中文時改用能唸中文的語音 Meijia；也可以開啟「需要你」時提醒。在 ⚙ 設定頁的 Alerts on this Mac 分別開關，有試聽按鈕。伺服器在跑時才會提醒 |
 | **設定** | 右上角 ⚙：主題（自動跟著 macOS／淺色／深色），以及每個小資訊要不要顯示：用量限制、視窗 CPU／記憶體、context 條、增量小圖、cache 時間、todo、目前步驟、最後的 prompt 和回覆。每個瀏覽器各自記住，Chrome 側邊欄共用同一份 |
 
 ## 需求
