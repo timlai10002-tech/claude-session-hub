@@ -196,3 +196,41 @@ test('running and waiting sessions are pinned in an Active section, tagged with 
   expect(await ui.find({ text: /↑ 1 in Active above/ })).toBeDefined()
   await ui.unmount()
 })
+
+// A running VS Code session whose window can take keys, and one that finished a minute ago.
+const LIVE = [
+  { pid: 7, sessionId: 'r', name: 'web-shop-build', cwd: '~/web-shop', status: 'busy', statusSince: 1234, app: 'vscode', window: 'w1', windowLabel: '~/web-shop', tty: 'ttys009', winCpu: 3, winMemMB: 90, winSource: 'extension', extVersion: '0.3.1', appCpu: 5, gpuProcCpu: 0 },
+  { pid: 8, sessionId: 'd', name: 'web-shop-docs', cwd: '~/web-shop', status: 'idle', statusSince: Date.now() - 60_000, lastReply: 'All done.', app: 'vscode', window: 'w1', windowLabel: '~/web-shop', tty: 'ttys010' },
+]
+
+test('a session that just finished is pinned as DONE', async ($, on) => {
+  on('process.run', async () => ({ value: { exitCode: 0, stdout: JSON.stringify(LIVE), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }) as never)
+  on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
+  await $.command.run({ command: 'sessions', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'session-progress', surface: 'terminal', component: 'Pane', requestId: 'session-progress', props: {} as never })
+  expect(await ui.find({ text: /✓ DONE 1m/ })).toBeDefined()
+  expect(await ui.find({ text: /Active \(2\)/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('stop needs two presses and then asks vscode.py to press Esc in that run', async ($, on) => {
+  const calls: string[][] = []
+  on('process.run', async (_$, e) => {
+    const argv = (e as { argv: string[] }).argv
+    calls.push([...argv])
+    const stdout = argv.some(a => a.endsWith('vscode.py')) ? JSON.stringify({ ok: true }) : JSON.stringify(LIVE)
+    return { value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } } as never
+  })
+  on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
+  await $.command.run({ command: 'sessions', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'session-progress', surface: 'terminal', component: 'Pane', requestId: 'session-progress', props: {} as never })
+  const stops = () => calls.filter(argv => argv.includes('stop'))
+
+  await ui.press({ key: 'stop-r' })
+  expect(stops()).toHaveLength(0)
+  expect(await ui.find({ text: /press again to stop/ })).toBeDefined()
+
+  await ui.press({ key: 'stop-r' })
+  expect(stops().map(argv => argv.slice(-3))).toEqual([['stop', '7', '1234']])
+  await ui.unmount()
+})

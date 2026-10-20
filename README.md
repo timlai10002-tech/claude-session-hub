@@ -20,14 +20,17 @@
 
 | | |
 |---|---|
-| **總覽** | 執行中和等你回答的 session 置頂在「Active」區（等你回答的在最前，並標出所在視窗），其餘依 VS Code 視窗分組；狀態徽章：`▶ RUNNING`、`⚠ NEEDS YOU`、`○ idle 3h12m` |
+| **總覽** | 等你回答、執行中、剛完成的 session 置頂在「Active」區（依這個順序，並標出所在視窗），其餘依 VS Code 視窗分組；狀態徽章：`⚠ NEEDS YOU`、`▶ RUNNING`、`✓ DONE 2m`、`○ idle 3h12m` |
+| **剛完成** | 跑完 10 分鐘內標成 `✓ DONE`，留在 Active 區，不會一跑完就掉回下面 |
 | **Context** | 用量條（`245k/1M`）、每次 prompt 的增量小圖（`▂▇▅▃█ ▲ +10.1k`）、prompt cache 剩餘時間 |
 | **用量限制** | 帳號的 5 小時和 7 天限制百分比、何時重置 |
 | **資源** | 每個 VS Code 視窗的 CPU 和記憶體，VS Code 的 GPU process 和系統 GPU 使用率 |
 | **跳轉／關閉** | 點 session 名稱就跳到那個 VS Code 視窗和 terminal；按兩次「✕ close」關閉視窗 |
+| **停止** | 執行中的 session 有 `■ Stop` 按鈕，按兩次就在它的 terminal 按 Esc 中斷（只在它還在同一次執行時送出） |
 | **回答詢問** | session 卡在權限詢問或問題時，直接在 web 上點「Allow／Deny」或選答案 |
 | **區網／手機** | 選用；只有帶密鑰的網址才連得進來 |
 | **Chrome 側邊欄** | 瀏覽器右側常駐面板，工具列徽章顯示等待中和執行中的 session 數 |
+| **通知** | session 等你回答或跑完時跳 macOS 通知，點通知直接跳到那個 VS Code terminal；在工具列圖示按右鍵可以分別關掉兩種通知 |
 | **深色／淺色** | 預設跟著 macOS，標題旁的按鈕可以切換自動、淺色、深色，每個瀏覽器各自記住 |
 
 ## 需求

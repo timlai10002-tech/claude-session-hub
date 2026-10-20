@@ -1,11 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Claude Session Hub",
-  "version": "0.2.0",
-  "description": "Side panel showing every Claude Code session on this Mac: who is running, who needs you, context use; answer prompts and start new sessions. Reads the local server at 127.0.0.1:8787.",
+  "version": "0.3.0",
+  "description": "Side panel showing every Claude Code session on this Mac: who is running, who needs you, context use. Notifies when a session needs you or finishes; answer prompts from the panel. Reads the local server at 127.0.0.1:8787.",
   "permissions": [
     "sidePanel",
-    "alarms"
+    "alarms",
+    "notifications",
+    "contextMenus",
+    "storage"
   ],
   "host_permissions": [
     "http://127.0.0.1:8787/*"

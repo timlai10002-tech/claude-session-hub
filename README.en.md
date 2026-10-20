@@ -20,14 +20,17 @@ The screenshots use demo data.
 
 | | |
 |---|---|
-| **Overview** | Running and waiting sessions pinned in an Active section on top (waiting first, each tagged with its window); the rest grouped by VS Code window. Status badges: `▶ RUNNING`, `⚠ NEEDS YOU`, `○ idle 3h12m` |
+| **Overview** | Sessions waiting for you, running, and just finished are pinned in an Active section on top (in that order, each tagged with its window); the rest grouped by VS Code window. Status badges: `⚠ NEEDS YOU`, `▶ RUNNING`, `✓ DONE 2m`, `○ idle 3h12m` |
+| **Just finished** | A session that finished within 10 minutes shows `✓ DONE` and stays in Active instead of dropping straight to the idle list |
 | **Context** | Usage bar (`245k/1M`), a sparkline of growth per prompt (`▂▇▅▃█ ▲ +10.1k`), time left on the prompt cache |
 | **Rate limits** | Your account's 5-hour and 7-day usage and when they reset |
 | **Resources** | CPU and memory per VS Code window, VS Code's GPU process, and system GPU utilisation |
 | **Jump / close** | Click a session's name to bring up its VS Code window and terminal; press "✕ close" twice to close the window |
+| **Stop** | Running sessions get a `■ Stop` button; two presses send Esc to its terminal to interrupt it (only while it is still in the same run) |
 | **Answer prompts** | When a session is stuck on a permission prompt or a question, answer it from the web page |
 | **LAN / phone** | Optional; only a URL carrying the secret key gets in |
 | **Chrome side panel** | A panel on the right of the browser; the toolbar badge counts sessions waiting and running |
+| **Notifications** | A macOS notification when a session needs you or finishes; click it to jump to that VS Code terminal. Right-click the toolbar icon to turn either kind off |
 | **Dark / light** | Follows macOS by default; the button by the title cycles auto, light and dark, remembered per browser |
 
 ## Requirements

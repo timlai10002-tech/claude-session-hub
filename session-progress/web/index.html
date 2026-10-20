@@ -54,6 +54,11 @@
   .group.active { border-color: var(--run); }
   .group.active .gname { color: var(--run); }
   .where { font-size: 12px; font-weight: 600; color: var(--blue); border: 1px solid var(--line); border-radius: 5px; padding: 0 6px; white-space: nowrap; }
+  .badge.done { background: var(--cyan); }
+  .row.done { border-left-color: var(--cyan); }
+  .stop { font: inherit; font-size: 12px; background: none; border: 1px solid var(--line); color: var(--dim); border-radius: 6px; padding: 1px 9px; cursor: pointer; }
+  .stop:hover { color: var(--red); border-color: var(--red); }
+  .stop.armed { background: var(--red); border-color: var(--red); color: #fff; }
   .pinned { border-top: 1px solid var(--line); padding: 7px 14px; font-size: 12px; color: var(--dim); }
   .gcount { font-size: 12px; font-weight: 600; }
   .gcount.run { color: var(--run); } .gcount.wait { color: var(--wait); }
@@ -201,20 +206,35 @@ function askHtml(r) {
 }
 
 const isActive = r => r.status === 'busy' || r.status === 'waiting'
+// "done": idle and replied within DONE_MS, so a finish stays pinned for a while.
+const DONE_MS = 10 * 60_000
+const isDone = r => r.status === 'idle' && !!r.lastReply && Date.now() - r.statusSince < DONE_MS
+const shown = r => isDone(r) ? 'done' : r.status
+const pinned = r => isActive(r) || isDone(r)
+const PIN_RANK = { waiting: 0, busy: 1, done: 2 }
+let armedStop = '', stopTimer = 0
 // Where a session lives, for its row in the Active section.
 const whereOf = r => r.app === 'vscode' ? `VS Code · ${r.windowLabel ?? r.window}` : r.app === 'Apple_Terminal' ? 'Terminal' : r.app === 'other' ? 'terminal' : r.app
 
 function rowHtml(r, where) {
-  const badge = r.status === 'busy' ? `<span class="badge busy">RUNNING ${span(r.statusSince)}</span>`
+  const st = shown(r)
+  const badge = st === 'done' ? `<span class="badge done">✓ DONE ${span(r.statusSince)}</span>`
+    : r.status === 'busy' ? `<span class="badge busy">RUNNING ${span(r.statusSince)}</span>`
     : r.status === 'waiting' ? `<span class="badge waiting">⚠ NEEDS YOU ${span(r.statusSince)}</span>`
     : `<span class="badge idle">○ ${esc(r.status)} ${span(r.statusSince)}</span>`
   const name = r.app === 'vscode'
     ? `<button class="name" data-focus="${r.pid}" title="Go to this VS Code terminal">↗ ${esc(r.name)}</button>`
     : `<span class="name">${esc(r.name)}</span>`
-  let html = `<div class="row ${esc(r.status)}"><div class="rhead">${badge}`
+  let html = `<div class="row ${esc(st)}"><div class="rhead">${badge}`
   if (r.waitingFor) html += `<span class="waitfor">${esc(r.waitingFor)}</span>`
   if (where) html += `<span class="where">${esc(where)}</span>`
-  html += `${name}<span class="meta">${esc(r.tty)} · ${esc(r.cwd)}</span></div>`
+  html += `${name}<span class="meta">${esc(r.tty)} · ${esc(r.cwd)}</span>`
+  // Esc into a running session (two presses); needs the window's extension at 0.3.1+.
+  if (r.status === 'busy' && r.app === 'vscode' && r.extVersion) {
+    const armedHere = armedStop === r.sessionId
+    html += `<button class="stop ${armedHere ? 'armed' : ''}" data-stop="${esc(r.sessionId)}" title="Press Esc in this session's terminal">${armedHere ? '■ Press again to stop' : '■ Stop'}</button>`
+  }
+  html += `</div>`
   if (r.status === 'waiting') html += askHtml(r)
   if (r.title) html += `<div class="line">${esc(r.title)}</div>`
   const now = r.todoActive || r.lastTool
@@ -257,7 +277,7 @@ function render() {
   if (!groups.length) { $('groups').innerHTML = `<div class="empty">No running sessions found.</div>`; return }
   // Running and waiting sessions are pinned in one Active section on top (waiting
   // first, longest first); the window groups below keep only the idle ones.
-  const active = rows.filter(isActive).sort((a, b) => (RANK[a.status] ?? 3) - (RANK[b.status] ?? 3) || a.statusSince - b.statusSince)
+  const active = rows.filter(pinned).sort((a, b) => (PIN_RANK[shown(a)] ?? 3) - (PIN_RANK[shown(b)] ?? 3) || a.statusSince - b.statusSince)
   const activeHtml = active.length
     ? `<section class="group active"><div class="ghead"><span class="gname">Active (${active.length})</span></div>${active.map(r => rowHtml(r, whereOf(r))).join('')}</section>`
     : ''
@@ -271,9 +291,9 @@ function render() {
     if (g.key !== 'other') h += `<button class="close ${armed === g.key ? 'armed' : ''}" data-close="${esc(g.key)}" title="${canClose ? 'Close this VS Code window' : RELOAD_HINT}">${!canClose ? '✕ close (reload window first)' : armed === g.key ? 'Press again to close' : '✕ close'}</button>`
     h += `</div>`
     if (s) h += `<div class="stats">${s.winSource === 'terminals' ? 'claude terminals' : 'window'} CPU ${s.winCpu}% · ${s.winMemMB}MB │ VS Code CPU ${s.appCpu}% · GPU proc ${s.gpuProcCpu}%${s.gpuUtil !== undefined ? ` · GPU ${s.gpuUtil}% (system)` : ''}</div>`
-    const pinned = g.rows.filter(isActive).length
-    return h + g.rows.filter(r => !isActive(r)).map(r => rowHtml(r)).join('')
-      + (pinned ? `<div class="pinned">↑ ${pinned} in Active above</div>` : '') + `</section>`
+    const up = g.rows.filter(pinned).length
+    return h + g.rows.filter(r => !pinned(r)).map(r => rowHtml(r)).join('')
+      + (up ? `<div class="pinned">↑ ${up} in Active above</div>` : '') + `</section>`
   }).join('')
 }
 
@@ -281,6 +301,13 @@ async function post(action, pid, extra = {}) {
   try {
     const res = await fetch(`api/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Sessions': '1' }, body: JSON.stringify({ pid, ...extra }) })
     const out = await res.json()
+    if (action === 'stop') {
+      if (out.ok) toast('Stopped')
+      else if (out.reason === 'not-running') toast('That session is no longer running')
+      else if (out.reason === 'old-extension') toast('Not stopped, the VS Code extension is too old: run "Developer: Reload Window" in that window')
+      else toast('The VS Code window did not answer')
+      return setTimeout(poll, 600)
+    }
     if (action === 'answer') {
       if (out.ok) toast('Sent')
       else if (out.reason === 'not-waiting') toast('That session is no longer waiting; refreshing')
@@ -295,6 +322,19 @@ async function post(action, pid, extra = {}) {
 }
 
 document.addEventListener('click', e => {
+  const sb = e.target.closest('[data-stop]')
+  if (sb) {
+    const sid = sb.dataset.stop
+    if (armedStop !== sid) {
+      armedStop = sid; clearTimeout(stopTimer)
+      stopTimer = setTimeout(() => { armedStop = ''; render() }, CONFIRM_MS)
+      return render()
+    }
+    armedStop = ''; clearTimeout(stopTimer)
+    const r = rows.find(x => x.sessionId === sid)
+    if (r) post('stop', r.pid, { since: r.statusSince })
+    return render()
+  }
   const a = e.target.closest('[data-answer]')
   if (a) {
     a.closest('.opts').querySelectorAll('button').forEach(b => { b.disabled = true })

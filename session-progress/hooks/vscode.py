@@ -5,6 +5,9 @@ vscode.py key <pid> <1-9|esc> <statusUpdatedAt>: type one key into that
 terminal to answer the prompt the session is waiting on, only if the session
 is still waiting in the same spell (so a late press never lands in the prompt box).
 
+vscode.py stop <pid> <statusUpdatedAt>: press Esc in that terminal to interrupt
+the session, only if it is still running in the same spell.
+
 Needs the claude-terminal-focus extension (../vscode-extension) in VS Code.
 Prints {"ok": true, "action": ..., "terminal": name}, or {"ok": false} with
 "reason": "old-extension" when the window's extension predates actions.
@@ -31,13 +34,14 @@ def ancestors(pid):
 KEYS = {**{str(n): str(n) for n in range(1, 10)}, "esc": "\x1b"}
 
 
-def still_waiting(pid, since):
+def still(pid, status, since):
+    """The session is still in the same spell of `status` the page showed."""
     try:
         with open(os.path.join(os.path.expanduser("~"), ".claude", "sessions", f"{pid}.json")) as fh:
             s = json.load(fh)
     except Exception:
         return False
-    return s.get("status") == "waiting" and str(s.get("statusUpdatedAt")) == since
+    return s.get("status") == status and str(s.get("statusUpdatedAt")) == since
 
 
 action, pid = sys.argv[1], int(sys.argv[2])
@@ -47,10 +51,16 @@ if action == "key":
     if key not in KEYS:
         print(json.dumps({"ok": False, "reason": "bad-key"}))
         sys.exit(0)
-    if not still_waiting(pid, since):
+    if not still(pid, "waiting", since):
         print(json.dumps({"ok": False, "reason": "not-waiting"}))
         sys.exit(0)
     req["text"] = KEYS[key]
+elif action == "stop":
+    # Esc interrupts a running turn; it reaches the extension as a key request.
+    if not still(pid, "busy", sys.argv[3]):
+        print(json.dumps({"ok": False, "reason": "not-running"}))
+        sys.exit(0)
+    req = {"action": "key", "text": KEYS["esc"]}
 os.makedirs(DIR, exist_ok=True)
 rid = uuid.uuid4().hex
 tmp = os.path.join(DIR, f".request-{rid}.json")
@@ -70,7 +80,7 @@ while time.time() < deadline:
             os.remove(ack)
         # The 0.1.0 extension ignores the action and always focuses; its ack has no "action".
         # Before 0.3.1 a key request is acked but only focuses; 0.3.1 adds "version".
-        if out.get("action", "focus") != action or (action == "key" and not out.get("version")):
+        if out.get("action", "focus") != req["action"] or (req["action"] == "key" and not out.get("version")):
             out = {"ok": False, "reason": "old-extension"}
         print(json.dumps(out))
         sys.exit(0)

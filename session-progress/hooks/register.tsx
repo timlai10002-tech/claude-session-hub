@@ -39,8 +39,10 @@ async function shareLimits($: EngineInterface, list: Limits['list']) {
 const STATUS_COLOR: Record<string, string> = { busy: 'green', waiting: 'yellow', idle: 'gray' }
 const STATUS_ICON: Record<string, string> = { busy: '●', waiting: '◐', idle: '○' }
 // Busy and waiting rows get a solid badge and a colored gutter down every line; idle rows stay dim.
-const BADGE: Record<string, string> = { busy: '▶ RUNNING', waiting: '⚠ NEEDS YOU' }
-const GUTTER: Record<string, string> = { busy: 'green', waiting: 'yellow' }
+// "done" is an idle session that replied within DONE_MS: it stays pinned so a finish isn't missed.
+const BADGE: Record<string, string> = { busy: '▶ RUNNING', waiting: '⚠ NEEDS YOU', done: '✓ DONE' }
+const GUTTER: Record<string, string> = { busy: 'green', waiting: 'yellow', done: 'cyan' }
+const DONE_MS = 10 * 60_000
 
 const count = (list: SessionRow[], status: string) => list.filter(r => r.status === status).length
 
@@ -105,6 +107,29 @@ async function vscodeAction($: EngineInterface, action: 'focus' | 'close', r: Se
   if (ok && action === 'close') void scan($)
 }
 
+// Esc into a running session's terminal, on a second press within CONFIRM_MS (the arm
+// shares closeArmed, keyed stop:<session>), and only while it is still in that run.
+async function pressStop($: EngineInterface, r: SessionRow) {
+  const key = `stop:${r.sessionId}`
+  if ((await read($, closeArmed)) !== key) {
+    await update($, closeArmed, () => key)
+    $.clock.after(CONFIRM_MS, () => void update($, closeArmed, k => (k === key ? '' : k)))
+    return
+  }
+  await update($, closeArmed, () => '')
+  const script = `${$.plugin.root}/hooks/vscode.py`
+  const run = await $.process.run(['python3', '-I', script, 'stop', String(r.pid), String(r.statusSince)], { timeoutMs: 8000 }).catch(() => undefined)
+  let out: { ok?: boolean; reason?: string } = {}
+  try {
+    out = run && run.exitCode === 0 ? JSON.parse(run.stdout) : {}
+  } catch {}
+  if (out.ok) $.ui.toast(`Stopped ${r.name}.`)
+  else if (out.reason === 'not-running') $.ui.toast(`${r.name} is no longer running.`)
+  else if (out.reason === 'old-extension') $.ui.toast(`Not stopped, that window runs an old extension: ${RELOAD_HINT}.`)
+  else $.ui.toast(`No VS Code window answered for ${r.name}.`)
+  void scan($)
+}
+
 const RELOAD_HINT = 'in that VS Code window run "Developer: Reload Window" so the claude-terminal-focus extension (0.2+) loads'
 
 async function pressClose($: EngineInterface, g: Group) {
@@ -144,6 +169,10 @@ function groupRows(list: SessionRow[]): Group[] {
 
 const STATUS_RANK: Record<string, number> = { waiting: 0, busy: 1, idle: 2 }
 const isActive = (r: SessionRow) => r.status === 'busy' || r.status === 'waiting'
+const isDone = (r: SessionRow, now: number) => r.status === 'idle' && !!r.lastReply && now - r.statusSince < DONE_MS
+// The status a row is drawn with: its own, or "done" for a fresh finish.
+const shown = (r: SessionRow, now: number) => (isDone(r, now) ? 'done' : r.status)
+const PIN_RANK: Record<string, number> = { waiting: 0, busy: 1, done: 2 }
 // Where a session lives, for its row in the Active section.
 const whereOf = (r: SessionRow) =>
   r.app === 'vscode' ? `VS Code · ${r.windowLabel ?? r.window}` : r.app === 'Apple_Terminal' ? 'Terminal' : r.app === 'other' ? 'terminal' : r.app
@@ -230,19 +259,21 @@ export const register: Register = on => {
     const vscodeCount = list.filter(r => r.app === 'vscode').length
     // Running and waiting sessions are pinned in one Active section on top (waiting
     // first, longest first); the window groups below keep only the idle ones.
-    const active = list.filter(isActive).sort((a, b) => (STATUS_RANK[a.status] ?? 3) - (STATUS_RANK[b.status] ?? 3) || a.statusSince - b.statusSince)
+    const pinned = (r: SessionRow) => isActive(r) || isDone(r, now)
+    const active = list.filter(pinned).sort((a, b) => (PIN_RANK[shown(a, now)] ?? 3) - (PIN_RANK[shown(b, now)] ?? 3) || a.statusSince - b.statusSince)
     const sessionRow = (r: SessionRow, where?: string) => {
-    const gutter = GUTTER[r.status]
+    const st = shown(r, now)
+    const gutter = GUTTER[st]
     const pad = gutter ? <Text color={gutter}>{'  ┃ '}</Text> : '    '
-    const active = r.status === 'busy' || r.status === 'waiting'
+    const active = st !== 'idle'
     return (
     <Box key={r.sessionId} flexDirection="column">
       <Box key={`head-${r.sessionId}`} flexDirection="row">
         <Text>
           {gutter ? <Text color={gutter}>{'  ┃ '}</Text> : '  '}
-          {BADGE[r.status] ? (
+          {BADGE[st] ? (
             <Text backgroundColor={gutter} color="black" bold>
-              {' '}{BADGE[r.status]} {span(now, r.statusSince)}{' '}
+              {' '}{BADGE[st]} {span(now, r.statusSince)}{' '}
             </Text>
           ) : (
             <Text color={STATUS_COLOR[r.status] ?? 'white'} dimColor>
@@ -257,6 +288,18 @@ export const register: Register = on => {
           <Text bold={active} dimColor={!active}>{r.name}</Text>
         )}
         {where ? <Text color="blue"> [{where}]</Text> : ''}
+        {r.status === 'busy' && r.app === 'vscode' && r.extVersion ? (
+          <Button
+            key={`stop-${r.sessionId}`}
+            plain
+            dimColor={armed !== `stop:${r.sessionId}`}
+            label={armed === `stop:${r.sessionId}` ? ' ■ press again to stop' : ' ■ stop'}
+            hover={{ color: 'red' }}
+            onPress={() => void pressStop($, r)}
+          />
+        ) : (
+          ''
+        )}
         <Text wrap="truncate" dimColor> {r.tty} · {r.cwd}</Text>
       </Box>
       {r.title && <Text wrap="truncate" dimColor={!active}>{pad}{r.title}</Text>}
@@ -380,9 +423,9 @@ export const register: Register = on => {
                 {g.stats.gpuProcCpu}%{g.stats.gpuUtil !== undefined ? ` · GPU ${g.stats.gpuUtil}% (system)` : ''}
               </Text>
             )}
-            {g.rows.filter(r => !isActive(r)).map(r => sessionRow(r))}
-            {g.rows.some(isActive) && (
-              <Text dimColor>{'  '}↑ {g.rows.filter(isActive).length} in Active above</Text>
+            {g.rows.filter(r => !pinned(r)).map(r => sessionRow(r))}
+            {g.rows.some(pinned) && (
+              <Text dimColor>{'  '}↑ {g.rows.filter(pinned).length} in Active above</Text>
             )}
           </Box>
         ))}
