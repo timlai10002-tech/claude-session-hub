@@ -30,9 +30,9 @@
 | **回答詢問** | session 卡在權限詢問或問題時，直接在 web 上點「Allow／Deny」或選答案 |
 | **區網／手機** | 選用；只有帶密鑰的網址才連得進來 |
 | **Chrome 側邊欄** | 瀏覽器右側常駐面板，工具列徽章顯示等待中和執行中的 session 數 |
-| **通知** | session 等你回答或跑完時跳 macOS 通知，點通知直接跳到那個 VS Code terminal；在工具列圖示按右鍵可以分別關掉兩種通知 |
-| **提示音和語音** | session 跑完時由本機伺服器先播一聲系統提示音（Glass、Ping、Hero 等，可各自選），再用 macOS `say` 唸出專案資料夾和這個 session 在做什麼，例如「web shop Fix the checkout button is done」。「在做什麼」是 plugin 在你每次送出 prompt 時用 haiku 摘要成的幾個英文字（每個 prompt 一次小額呼叫）；還沒有摘要時改用 session 標題，用英文唸；標題有中文時改用能唸中文的語音 Meijia；也可以開啟「需要你」時提醒。在 ⚙ 設定頁的 Alerts on this Mac 分別開關，有試聽按鈕。伺服器在跑時才會提醒 |
-| **設定** | 右上角 ⚙：主題（自動跟著 macOS／淺色／深色），以及每個小資訊要不要顯示：用量限制、視窗 CPU／記憶體、context 條、增量小圖、cache 時間、todo、目前步驟、最後的 prompt 和回覆。每個瀏覽器各自記住，Chrome 側邊欄共用同一份 |
+| **Chrome 通知** | 裝了 Chrome 擴充時，session 等你回答或跑完會跳通知（Chrome 送的），點通知直接跳到那個 VS Code terminal；在工具列圖示按右鍵可以分別關掉兩種通知 |
+| **提示音和語音** | session 跑完時，本機伺服器先播一聲系統提示音（Glass、Ping、Hero 等，可各自選），再用 macOS `say` 唸出專案資料夾和它在做什麼，例如「web shop Fix the checkout button is done」。「在做什麼」是你每次送出 prompt 時，plugin 請 haiku 摘要成的幾個英文字（每個 prompt 一次小額呼叫）；還沒有摘要時唸 session 標題，標題有中文時改用能唸中文的 Meijia 語音。也可以開啟「需要你」時提醒。在 ⚙ 設定的 Alerts on this Mac 分別開關，有試聽按鈕；伺服器在跑時才會提醒 |
+| **設定** | 右上角 ⚙。主題（自動跟著 macOS／淺色／深色）和每個小資訊要不要顯示（用量限制、視窗 CPU／記憶體、context 條、增量小圖、cache 時間、todo、目前步驟、最後的 prompt 和回覆，每項都有說明和範例）存在瀏覽器裡，Chrome 側邊欄共用同一份；DONE 留在 Active 幾分鐘、提示音和語音存在本機伺服器，所有畫面和 `/sessions` 面板共用 |
 
 ## 需求
 
@@ -125,7 +125,7 @@ ps / ioreg                 ─┘          │
 ```
 
 - **scan.py** 讀 Claude Code 的 session 註冊檔和 transcript，算出狀態、context、增量、cache 時間，再用 `ps` 找出每個 session 屬於哪個 VS Code 視窗。
-- **register.tsx** 是 plugin 本體：每 5 秒掃描一次並畫出面板，把用量限制寫給 web 用，並在每次工具呼叫前記下它要做什麼，讓 web 能顯示 session 在等你回答什麼。
+- **register.tsx** 是 plugin 本體：每 5 秒掃描一次並畫出面板，把用量限制寫給 web 用，在每次工具呼叫前記下它要做什麼，讓 web 能顯示 session 在等你回答什麼，並把你每次送出的 prompt 摘要成幾個英文字給語音用。
 - **VS Code 擴充** 每 5 秒寫一次心跳（視窗資料夾、terminal 的 shell pid），並監看 `~/.claude/terminal-focus/request.json`，負責跳轉、關閉視窗，以及把一個數字或 Esc 送進 terminal。
 
 ## 安全設計

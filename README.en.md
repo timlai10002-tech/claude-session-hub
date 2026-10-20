@@ -30,9 +30,9 @@ The screenshots use demo data.
 | **Answer prompts** | When a session is stuck on a permission prompt or a question, answer it from the web page |
 | **LAN / phone** | Optional; only a URL carrying the secret key gets in |
 | **Chrome side panel** | A panel on the right of the browser; the toolbar badge counts sessions waiting and running |
-| **Notifications** | A macOS notification when a session needs you or finishes; click it to jump to that VS Code terminal. Right-click the toolbar icon to turn either kind off |
-| **Chime and voice** | When a session finishes, the local server plays a system chime (Glass, Ping, Hero… chosen per event), says the project folder and what the session is doing with macOS `say`: a few English words the plugin gets from haiku each time you send a prompt (one small call per prompt), or the session title until there is one in English, such as “web shop Fix the checkout button is done”, switching to the Meijia voice when the title has Chinese in it so it can be read; alerts for “needs you” can be turned on too. Each is a switch under Alerts on this Mac in ⚙ Settings, with test buttons. Active while the server runs |
-| **Settings** | The ⚙ in the top-right corner: theme (auto from macOS / light / dark) and a switch for each small piece of information: usage limits, window CPU / memory, context bar, growth sparkline, cache time, todos, current step, last prompt and reply. Saved per browser; the Chrome side panel shares them |
+| **Chrome notifications** | With the Chrome extension installed, Chrome shows a notification when a session needs you or finishes; click it to jump to that VS Code terminal. Right-click the toolbar icon to turn either kind off |
+| **Chime and voice** | When a session finishes, the local server plays a system chime (Glass, Ping, Hero… chosen per event), then says the project folder and what the session is doing with macOS `say`, such as “web shop Fix the checkout button is done”. “What it is doing” is a few English words the plugin gets from haiku each time you send a prompt (one small call per prompt); until there is one it says the session title, using the Meijia voice when the title has Chinese in it. Alerts for “needs you” can be turned on too. Each is a switch under Alerts on this Mac in ⚙ Settings, with test buttons; active while the server runs |
+| **Settings** | The ⚙ in the top-right corner. The theme (auto from macOS / light / dark) and a switch for each small piece of information (usage limits, window CPU / memory, context bar, growth sparkline, cache time, todos, current step, last prompt and reply, each explained with an example) are saved in the browser, and the Chrome side panel shares them. How long DONE stays in Active and the chime and voice live on the local server, shared by every view and the `/sessions` pane |
 
 ## Requirements
 
@@ -125,7 +125,7 @@ ps / ioreg                 ─┘          │
 ```
 
 - **scan.py** reads Claude Code's session registry and transcripts to work out status, context, growth and cache time, then uses `ps` to find which VS Code window each session lives in.
-- **register.tsx** is the plugin itself: it scans every 5 seconds and draws the pane, writes the rate limits for the web page, and records each tool call before it runs, so the web page can show what a waiting session is asking.
+- **register.tsx** is the plugin itself: it scans every 5 seconds and draws the pane, writes the rate limits for the web page, records each tool call before it runs, so the web page can show what a waiting session is asking, and summarises each prompt you send into a few English words for the voice.
 - **The VS Code extension** writes a heartbeat every 5 seconds (the window's folder and its terminals' shell pids) and watches `~/.claude/terminal-focus/request.json` to jump to a terminal, close the window, or type one digit or Esc into a terminal.
 
 ## Security
