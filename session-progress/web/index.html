@@ -49,9 +49,9 @@
   header { padding-right: 44px; }
   .gear { position: absolute; top: 20px; right: 16px; font-size: 16px; line-height: 1; background: none; border: 1px solid var(--line); color: var(--dim); border-radius: 8px; padding: 4px 7px; cursor: pointer; }
   .gear:hover { color: var(--fg); }
-  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: flex-start; justify-content: center; padding: 60px 16px; z-index: 10; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 10; }
   .overlay[hidden] { display: none; }
-  .sheet { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; width: 100%; max-width: 380px; padding: 16px 18px; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+  .sheet { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; width: 100%; max-width: 380px; padding: 16px 18px; box-shadow: 0 10px 40px rgba(0,0,0,.3); max-height: calc(100dvh - 80px); overflow-y: auto; }
   .shead { display: flex; align-items: center; margin-bottom: 8px; }
   .shead h2 { font-size: 16px; margin: 0; flex: 1; }
   .sclose { background: none; border: 0; color: var(--dim); font-size: 16px; cursor: pointer; }
@@ -70,6 +70,10 @@
   .toggle input:checked { background: var(--run); }
   .toggle input:checked::after { transform: translateX(14px); }
   .snote { margin-top: 12px; font-size: 12px; color: var(--dim); }
+  .snote code { font-size: 11px; }
+  .stest { display: flex; gap: 8px; margin-top: 8px; }
+  .stest button { flex: 1; font: inherit; font-size: 12px; padding: 5px 0; background: none; border: 1px solid var(--line); border-radius: 7px; color: var(--fg); cursor: pointer; }
+  .stest button:hover { border-color: var(--blue); color: var(--blue); }
   /* Each display setting that is off hides its pieces. */
   body.hide-limits #limits, body.hide-stats .stats, body.hide-ctx .ctx, body.hide-growth .growth,
   body.hide-cache .cache, body.hide-todo .todo, body.hide-now .now, body.hide-convo .convo { display: none !important; }
@@ -174,6 +178,12 @@
       <div id="toggles"></div>
     </div>
     <div class="snote">Saved in this browser. The Chrome side panel uses the same settings.</div>
+    <div class="sgroup">
+      <div class="slabel">Alerts on this Mac</div>
+      <div id="alertToggles"></div>
+      <div class="stest"><button data-test="done">Try “done”</button><button data-test="need">Try “needs you”</button></div>
+    </div>
+    <div class="snote">Spoken with macOS <code>say</code> and shown as macOS notifications, by the local server while it runs. Shared by every browser.</div>
   </div>
 </div>
 <script>
@@ -472,7 +482,33 @@ function setTheme(t) {
 }
 $('toggles').innerHTML = PIECES.map(([id, label, sample]) =>
   `<label class="toggle"><span>${esc(label)}<small>${esc(sample)}</small></span><input type="checkbox" data-piece="${id}"></label>`).join('')
+// Alerts live on the server (one announcer however many pages are open).
+const ALERTS = [
+  ['doneSpeak', 'Speak when a session finishes', '“web shop is done”'],
+  ['doneNotify', 'Notify when a session finishes', 'macOS notification'],
+  ['needSpeak', 'Speak when a session needs you', '“web shop needs you”'],
+  ['needNotify', 'Notify when a session needs you', 'macOS notification'],
+]
+$('alertToggles').innerHTML = ALERTS.map(([id, label, sample]) =>
+  `<label class="toggle"><span>${esc(label)}<small>${esc(sample)}</small></span><input type="checkbox" data-alert="${id}"></label>`).join('')
+const alertsApi = body => fetch('api/alerts', body === undefined ? { cache: 'no-store' }
+  : { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Sessions': '1' }, body: JSON.stringify(body) }).then(r => r.json())
+async function loadAlerts() {
+  try {
+    const on = await alertsApi()
+    document.querySelectorAll('[data-alert]').forEach(i => { i.checked = !!on[i.dataset.alert] })
+  } catch {}
+}
+$('alertToggles').addEventListener('change', e => {
+  alertsApi({ [e.target.dataset.alert]: e.target.checked }).catch(() => toast('Cannot reach the local server'))
+})
+document.querySelector('.stest').addEventListener('click', e => {
+  const b = e.target.closest('[data-test]')
+  if (b) alertsApi({ test: b.dataset.test }).catch(() => toast('Cannot reach the local server'))
+})
+
 function openSettings() {
+  loadAlerts()
   const off = hidden()
   document.querySelectorAll('[data-piece]').forEach(i => { i.checked = !off.has(i.dataset.piece) })
   setTheme(document.documentElement.dataset.theme || 'auto')

@@ -31,6 +31,7 @@ The screenshots use demo data.
 | **LAN / phone** | Optional; only a URL carrying the secret key gets in |
 | **Chrome side panel** | A panel on the right of the browser; the toolbar badge counts sessions waiting and running |
 | **Notifications** | A macOS notification when a session needs you or finishes; click it to jump to that VS Code terminal. Right-click the toolbar icon to turn either kind off |
+| **Voice and macOS notifications** | When a session finishes, the local server says “web shop is done” with macOS `say` and posts a native macOS notification; alerts for “needs you” can be turned on too. Each is a switch under Alerts on this Mac in ⚙ Settings, with test buttons. Active while the server runs |
 | **Settings** | The ⚙ in the top-right corner: theme (auto from macOS / light / dark) and a switch for each small piece of information: usage limits, window CPU / memory, context bar, growth sparkline, cache time, todos, current step, last prompt and reply. Saved per browser; the Chrome side panel shares them |
 
 ## Requirements

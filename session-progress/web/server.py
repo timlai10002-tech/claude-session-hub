@@ -11,6 +11,12 @@ POST /api/stop      {"pid": n, "since": statusSince}
                     -> ../hooks/vscode.py stop n since: Esc into a running session
 POST /api/seen      {"sessionId": id, "since": statusSince}
                     -> ../hooks/seen.py: dismiss a session's DONE badge
+GET  /api/alerts    which spoken / macOS alerts are on (alerts.json beside this file)
+POST /api/alerts    {"doneSpeak": bool, ...} to change them; {"test": "done"} to try one
+
+Alerts: a watcher thread compares each scan with the last and, when a session
+finishes or starts waiting for you, speaks it (say) and/or posts a macOS
+notification (osascript), as alerts.json says. It runs while this server does.
 
 Binds to 127.0.0.1 only, unless LAN mode is on (SESSIONS_LAN=1 or a file named
 lan.enabled beside this one): then it listens on every interface, and a
@@ -73,6 +79,64 @@ def scan():
         return _cache["body"]
 
 
+# Spoken and macOS alerts, on this Mac, for sessions that finish or need you.
+ALERTS_FILE = os.path.join(HERE, "alerts.json")
+ALERT_DEFAULTS = {"doneSpeak": True, "doneNotify": True, "needSpeak": False, "needNotify": False}
+WATCH_S = 3
+
+
+def alert_settings():
+    try:
+        with open(ALERTS_FILE) as fh:
+            saved = json.load(fh)
+    except Exception:
+        saved = {}
+    return {k: bool(saved.get(k, v)) for k, v in ALERT_DEFAULTS.items()}
+
+
+def alert(kind, name, detail):
+    """Speak and/or notify one event, as the settings say. Text goes as arguments, never code."""
+    on = alert_settings()
+    title = f"✓ {name} finished" if kind == "done" else f"⚠ {name} needs you"
+    if on[f"{kind}Notify"]:
+        script = ["-e", "on run argv", "-e", "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run"]
+        subprocess.Popen(["osascript", *script, title, " ".join(str(detail or "").split())[:180] or " "],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if on[f"{kind}Speak"]:
+        spoken = name.replace("-", " ")
+        subprocess.Popen(["say", f"{spoken} is done" if kind == "done" else f"{spoken} needs you"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def watch_step(last, rows, alert=alert):
+    """Alert on sessions that went busy -> idle (done) or into a new wait since `last`;
+    returns the state to compare with next time. With no `last`, it only records."""
+    now = {r["sessionId"]: (r["status"], r["statusSince"]) for r in rows}
+    for r in rows if last is not None else []:
+        before = last.get(r["sessionId"])
+        if not before:
+            continue
+        if before[0] == "busy" and r["status"] == "idle":
+            alert("done", r["name"], r.get("lastReply") or r.get("title"))
+        elif r["status"] == "waiting" and (before[0] != "waiting" or before[1] != r["statusSince"]):
+            p = r.get("pending") or {}
+            ask = p.get("detail") if p.get("kind") == "question" else (f"Allow {p['tool']}? {p.get('detail', '')}" if p else r.get("waitingFor"))
+            alert("need", r["name"], ask)
+    return now
+
+
+def watch():
+    """Every WATCH_S, compare a scan with the last one (the first only records,
+    so starting the server announces nothing old)."""
+    last = None
+    while True:
+        try:
+            last = watch_step(last, json.loads(scan()))
+        except Exception:
+            pass
+        time.sleep(WATCH_S)
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_args):
         pass
@@ -126,6 +190,8 @@ class Handler(BaseHTTPRequestHandler):
                     self.send(200, fh.read())
             except OSError:
                 self.send(200, b'{"at":0,"list":[]}')
+        elif path == "/api/alerts":
+            self.send(200, json.dumps(alert_settings()).encode())
         elif path == "/api/ping":
             self.send(200, b'{"app":"session-progress"}')
         else:
@@ -138,6 +204,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(403, b'{"error":"forbidden"}')
         if self.route == "/api/seen":
             return self.seen()
+        if self.route == "/api/alerts":
+            return self.alerts()
         action = {"/api/focus": "focus", "/api/close": "close", "/api/answer": "key", "/api/stop": "stop"}.get(self.route)
         if not action:
             return self.send(403, b'{"error":"forbidden"}')
@@ -166,5 +234,24 @@ class Handler(BaseHTTPRequestHandler):
         self.send(200, run.stdout.strip() or b'{"ok":false}')
 
 
+    def alerts(self):
+        try:
+            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+        except ValueError:
+            return self.send(400, b'{"error":"bad body"}')
+        if body.get("test") in ("done", "need"):
+            kind = body["test"]
+            alert(kind, "test-session", "This is how it will look." if kind == "done" else "Allow Bash? npm test")
+            return self.send(200, b'{"ok":true}')
+        on = alert_settings()
+        on.update({k: bool(v) for k, v in body.items() if k in ALERT_DEFAULTS})
+        tmp = f"{ALERTS_FILE}.tmp"
+        with open(tmp, "w") as fh:
+            json.dump(on, fh)
+        os.replace(tmp, ALERTS_FILE)
+        self.send(200, json.dumps(on).encode())
+
+
 if __name__ == "__main__":
+    threading.Thread(target=watch, daemon=True).start()
     ThreadingHTTPServer(("0.0.0.0" if LAN else "127.0.0.1", PORT), Handler).serve_forever()
