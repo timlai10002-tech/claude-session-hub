@@ -42,6 +42,8 @@ export type SessionRow = {
   extVersion?: string
   /** The person dismissed this finish: no DONE badge until the session runs again. */
   seen?: boolean
+  /** Until when a finish shows as DONE (epoch ms), from the DONE setting; absent means 10 minutes. */
+  doneUntil?: number
   /** The whole VS Code app instance the window belongs to */
   appCpu?: number
   /** CPU of that instance's GPU process (per-process GPU time needs sudo) */

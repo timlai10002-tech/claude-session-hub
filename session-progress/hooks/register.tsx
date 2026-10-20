@@ -177,7 +177,7 @@ function groupRows(list: SessionRow[]): Group[] {
 
 const STATUS_RANK: Record<string, number> = { waiting: 0, busy: 1, idle: 2 }
 const isActive = (r: SessionRow) => r.status === 'busy' || r.status === 'waiting'
-const isDone = (r: SessionRow, now: number) => r.status === 'idle' && !r.seen && !!r.lastReply && now - r.statusSince < DONE_MS
+const isDone = (r: SessionRow, now: number) => r.status === 'idle' && !r.seen && !!r.lastReply && now < (r.doneUntil ?? r.statusSince + DONE_MS)
 // The status a row is drawn with: its own, or "done" for a fresh finish.
 const shown = (r: SessionRow, now: number) => (isDone(r, now) ? 'done' : r.status)
 const PIN_RANK: Record<string, number> = { waiting: 0, busy: 1, done: 2 }

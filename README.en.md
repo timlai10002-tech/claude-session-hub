@@ -21,7 +21,7 @@ The screenshots use demo data.
 | | |
 |---|---|
 | **Overview** | Sessions waiting for you, running, and just finished are pinned in an Active section on top (in that order, each tagged with its window); the rest grouped by VS Code window. Status badges: `⚠ NEEDS YOU`, `▶ RUNNING`, `✓ DONE 2m`, `○ idle 3h12m` |
-| **Just finished** | A session that finished within 10 minutes shows `✓ DONE 2m ✕` and stays in Active instead of dropping straight to the idle list; click the badge to move it there now, in every view |
+| **Just finished** | A session that finished recently (10 minutes by default; 1–60 minutes or off in ⚙ Settings) shows `✓ DONE 2m ✕` and stays in Active instead of dropping straight to the idle list; click the badge to move it there now, in every view |
 | **Context** | Usage bar (`245k/1M`), a sparkline of growth per prompt (`▂▇▅▃█ ▲ +10.1k`), time left on the prompt cache |
 | **Rate limits** | Your account's 5-hour and 7-day usage and when they reset |
 | **Resources** | CPU and memory per VS Code window, VS Code's GPU process, and system GPU utilisation |

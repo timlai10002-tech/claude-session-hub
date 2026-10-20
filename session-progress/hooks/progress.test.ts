@@ -213,6 +213,17 @@ test('a session that just finished is pinned as DONE', async ($, on) => {
   await ui.unmount()
 })
 
+test('a finish past its DONE setting (doneUntil) drops to the idle list', async ($, on) => {
+  const expired = LIVE.map(r => (r.sessionId === 'd' ? { ...r, doneUntil: Date.now() - 1 } : r))
+  on('process.run', async () => ({ value: { exitCode: 0, stdout: JSON.stringify(expired), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }) as never)
+  on('ui.open', async () => ({ value: { isPlaced: true } }) as never)
+  await $.command.run({ command: 'sessions', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'session-progress', surface: 'terminal', component: 'Pane', requestId: 'session-progress', props: {} as never })
+  expect(await ui.find({ text: /✓ DONE/ })).toBeUndefined()
+  expect(await ui.find({ text: /Active \(1\)/ })).toBeDefined()
+  await ui.unmount()
+})
+
 test('stop needs two presses and then asks vscode.py to press Esc in that run', async ($, on) => {
   const calls: string[][] = []
   on('process.run', async (_$, e) => {

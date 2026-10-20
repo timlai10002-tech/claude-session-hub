@@ -82,11 +82,14 @@ def scan():
         return _cache["body"]
 
 
-# Spoken and macOS alerts, on this Mac, for sessions that finish or need you.
+# Chime and spoken alerts, on this Mac, for sessions that finish or need you; alerts.json
+# also holds how long a finished session stays pinned as DONE (scan.py reads it).
 ALERTS_FILE = os.path.join(HERE, "alerts.json")
 ALERT_DEFAULTS = {"doneSound": True, "doneSpeak": True, "needSound": False, "needSpeak": False}
 SOUND_DIR = "/System/Library/Sounds"
 SOUND_DEFAULTS = {"doneSoundName": "Glass", "needSoundName": "Ping"}
+DONE_CHOICES = [0, 1, 3, 5, 10, 15, 30, 60]  # minutes; 0 = no DONE at all
+DONE_DEFAULT = 10
 
 
 def sounds():
@@ -107,6 +110,7 @@ def alert_settings():
     have = sounds()
     for k, v in SOUND_DEFAULTS.items():
         on[k] = saved.get(k) if saved.get(k) in have else v
+    on["doneMinutes"] = saved.get("doneMinutes") if saved.get("doneMinutes") in DONE_CHOICES else DONE_DEFAULT
     return on
 
 
@@ -223,7 +227,7 @@ class Handler(BaseHTTPRequestHandler):
             except OSError:
                 self.send(200, b'{"at":0,"list":[]}')
         elif path == "/api/alerts":
-            self.send(200, json.dumps({**alert_settings(), "sounds": sounds()}).encode())
+            self.send(200, json.dumps({**alert_settings(), "sounds": sounds(), "doneChoices": DONE_CHOICES}).encode())
         elif path == "/api/ping":
             self.send(200, b'{"app":"session-progress"}')
         else:
@@ -281,6 +285,9 @@ class Handler(BaseHTTPRequestHandler):
         on = alert_settings()
         on.update({k: bool(v) for k, v in body.items() if k in ALERT_DEFAULTS})
         on.update({k: v for k, v in body.items() if k in SOUND_DEFAULTS and v in sounds()})
+        if type(body.get("doneMinutes")) is int and body["doneMinutes"] in DONE_CHOICES:
+            on["doneMinutes"] = body["doneMinutes"]
+            _cache["at"] = 0
         tmp = f"{ALERTS_FILE}.tmp"
         with open(tmp, "w") as fh:
             json.dump(on, fh)

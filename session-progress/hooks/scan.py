@@ -196,6 +196,15 @@ try:
 except Exception:
     SEEN = {}
 
+# How long a finish stays pinned as DONE, from the web page's settings (web/alerts.json).
+try:
+    with open(os.path.join(os.path.dirname(PENDING), "alerts.json")) as fh:
+        DONE_MIN = json.load(fh).get("doneMinutes")
+except Exception:
+    DONE_MIN = None
+if DONE_MIN not in (0, 1, 3, 5, 10, 15, 30, 60):
+    DONE_MIN = 10
+
 rows = []
 for f in os.listdir(REG) if os.path.isdir(REG) else []:
     if not f.endswith(".json"):
@@ -231,6 +240,8 @@ for f in os.listdir(REG) if os.path.isdir(REG) else []:
     # A finish the person dismissed: no DONE badge until the session runs again.
     if row["status"] == "idle" and SEEN.get(row["sessionId"]) == row["statusSince"]:
         row["seen"] = True
+    if row["status"] == "idle":
+        row["doneUntil"] = row["statusSince"] + DONE_MIN * 60_000
     rows.append(row)
 
 procs = proc_info([r["pid"] for r in rows])

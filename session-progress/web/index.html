@@ -180,6 +180,11 @@
     </div>
     <div class="snote">Saved in this browser. The Chrome side panel uses the same settings.</div>
     <div class="sgroup">
+      <div class="slabel">Active</div>
+      <div class="toggle"><label for="doneMin"><span>Keep finished sessions in Active<small>“✓ DONE”, then down to the idle list</small></span></label><select class="sound" id="doneMin" title="How long a finished session stays in Active"></select></div>
+    </div>
+    <div class="snote">Shared by every browser and the <code>/sessions</code> pane.</div>
+    <div class="sgroup">
       <div class="slabel">Alerts on this Mac</div>
       <div id="alertToggles"></div>
       <div class="stest"><button data-test="done">Try “done”</button><button data-test="need">Try “needs you”</button></div>
@@ -265,9 +270,10 @@ function askHtml(r) {
 }
 
 const isActive = r => r.status === 'busy' || r.status === 'waiting'
-// "done": idle and replied within DONE_MS, so a finish stays pinned for a while.
+// "done": idle and replied recently, so a finish stays pinned for a while: until doneUntil
+// (the DONE setting, worked out by scan.py), or DONE_MS from an older scanner.
 const DONE_MS = 10 * 60_000
-const isDone = r => r.status === 'idle' && !r.seen && !!r.lastReply && Date.now() - r.statusSince < DONE_MS
+const isDone = r => r.status === 'idle' && !r.seen && !!r.lastReply && Date.now() < (r.doneUntil ?? r.statusSince + DONE_MS)
 const shown = r => isDone(r) ? 'done' : r.status
 const pinned = r => isActive(r) || isDone(r)
 const PIN_RANK = { waiting: 0, busy: 1, done: 2 }
@@ -504,8 +510,13 @@ async function loadAlerts() {
     document.querySelectorAll('[data-sound]').forEach(s => {
       s.innerHTML = (on.sounds || []).map(n => `<option ${n === on[s.dataset.sound] ? 'selected' : ''}>${esc(n)}</option>`).join('')
     })
+    $('doneMin').innerHTML = (on.doneChoices || []).map(m =>
+      `<option value="${m}" ${m === on.doneMinutes ? 'selected' : ''}>${m ? `${m} min` : 'Off'}</option>`).join('')
   } catch {}
 }
+$('doneMin').addEventListener('change', e => {
+  alertsApi({ doneMinutes: Number(e.target.value) }).then(() => poll()).catch(() => toast('Cannot reach the local server'))
+})
 $('alertToggles').addEventListener('change', e => {
   const t = e.target
   // Choosing a sound saves it and plays it once.
