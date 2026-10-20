@@ -11,12 +11,15 @@ POST /api/stop      {"pid": n, "since": statusSince}
                     -> ../hooks/vscode.py stop n since: Esc into a running session
 POST /api/seen      {"sessionId": id, "since": statusSince}
                     -> ../hooks/seen.py: dismiss a session's DONE badge
-GET  /api/alerts    which spoken / macOS alerts are on (alerts.json beside this file)
-POST /api/alerts    {"doneSpeak": bool, ...} to change them; {"test": "done"} to try one
+GET  /api/alerts    which chimes / spoken / macOS alerts are on (alerts.json beside this
+                    file), plus the system sounds to choose from
+POST /api/alerts    {"doneSpeak": bool, "doneSoundName": "Glass", ...} to change them;
+                    {"test": "done"} to try one; {"preview": "Hero"} to play a sound
 
 Alerts: a watcher thread compares each scan with the last and, when a session
-finishes or starts waiting for you, speaks it (say) and/or posts a macOS
-notification (osascript), as alerts.json says. It runs while this server does.
+finishes or starts waiting for you, plays a system sound (afplay), speaks it
+(say) and/or posts a macOS notification (osascript), as alerts.json says. It
+runs while this server does.
 
 Binds to 127.0.0.1 only, unless LAN mode is on (SESSIONS_LAN=1 or a file named
 lan.enabled beside this one): then it listens on every interface, and a
@@ -81,7 +84,17 @@ def scan():
 
 # Spoken and macOS alerts, on this Mac, for sessions that finish or need you.
 ALERTS_FILE = os.path.join(HERE, "alerts.json")
-ALERT_DEFAULTS = {"doneSpeak": True, "doneNotify": True, "needSpeak": False, "needNotify": False}
+ALERT_DEFAULTS = {"doneSound": True, "doneSpeak": True, "doneNotify": True,
+                  "needSound": False, "needSpeak": False, "needNotify": False}
+SOUND_DIR = "/System/Library/Sounds"
+SOUND_DEFAULTS = {"doneSoundName": "Glass", "needSoundName": "Ping"}
+
+
+def sounds():
+    try:
+        return sorted(f[:-5] for f in os.listdir(SOUND_DIR) if f.endswith(".aiff"))
+    except OSError:
+        return []
 WATCH_S = 3
 
 
@@ -91,7 +104,17 @@ def alert_settings():
             saved = json.load(fh)
     except Exception:
         saved = {}
-    return {k: bool(saved.get(k, v)) for k, v in ALERT_DEFAULTS.items()}
+    on = {k: bool(saved.get(k, v)) for k, v in ALERT_DEFAULTS.items()}
+    have = sounds()
+    for k, v in SOUND_DEFAULTS.items():
+        on[k] = saved.get(k) if saved.get(k) in have else v
+    return on
+
+
+def play(name):
+    """A system sound by name (only one from SOUND_DIR), waiting until it ends."""
+    if name in sounds():
+        subprocess.run(["afplay", os.path.join(SOUND_DIR, f"{name}.aiff")], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
 
 
 def alert(kind, name, detail):
@@ -102,10 +125,15 @@ def alert(kind, name, detail):
         script = ["-e", "on run argv", "-e", "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run"]
         subprocess.Popen(["osascript", *script, title, " ".join(str(detail or "").split())[:180] or " "],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    if on[f"{kind}Speak"]:
-        spoken = name.replace("-", " ")
-        subprocess.Popen(["say", f"{spoken} is done" if kind == "done" else f"{spoken} needs you"],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # The chime first, then the voice, one after the other, off the watcher's thread.
+    def sound_then_voice():
+        if on[f"{kind}Sound"]:
+            play(on[f"{kind}SoundName"])
+        if on[f"{kind}Speak"]:
+            spoken = name.replace("-", " ")
+            subprocess.run(["say", f"{spoken} is done" if kind == "done" else f"{spoken} needs you"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+    threading.Thread(target=sound_then_voice, daemon=True).start()
 
 
 def watch_step(last, rows, alert=alert):
@@ -191,7 +219,7 @@ class Handler(BaseHTTPRequestHandler):
             except OSError:
                 self.send(200, b'{"at":0,"list":[]}')
         elif path == "/api/alerts":
-            self.send(200, json.dumps(alert_settings()).encode())
+            self.send(200, json.dumps({**alert_settings(), "sounds": sounds()}).encode())
         elif path == "/api/ping":
             self.send(200, b'{"app":"session-progress"}')
         else:
@@ -239,12 +267,16 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
         except ValueError:
             return self.send(400, b'{"error":"bad body"}')
+        if body.get("preview") in sounds():
+            threading.Thread(target=play, args=(body["preview"],), daemon=True).start()
+            return self.send(200, b'{"ok":true}')
         if body.get("test") in ("done", "need"):
             kind = body["test"]
             alert(kind, "test-session", "This is how it will look." if kind == "done" else "Allow Bash? npm test")
             return self.send(200, b'{"ok":true}')
         on = alert_settings()
         on.update({k: bool(v) for k, v in body.items() if k in ALERT_DEFAULTS})
+        on.update({k: v for k, v in body.items() if k in SOUND_DEFAULTS and v in sounds()})
         tmp = f"{ALERTS_FILE}.tmp"
         with open(tmp, "w") as fh:
             json.dump(on, fh)

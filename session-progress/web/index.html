@@ -63,7 +63,8 @@
   .seg button.on { background: var(--blue); color: #fff; }
   .toggle { display: flex; align-items: center; gap: 10px; padding: 7px 0; cursor: pointer; font-size: 14px; }
   .toggle + .toggle { border-top: 1px solid var(--line); }
-  .toggle span { flex: 1; }
+  .toggle span, .toggle > label { flex: 1; cursor: pointer; }
+  .toggle select.sound { font: inherit; font-size: 12px; padding: 2px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
   .toggle small { display: block; color: var(--dim); font-size: 12px; }
   .toggle input { appearance: none; width: 34px; height: 20px; border-radius: 999px; background: var(--track); position: relative; cursor: pointer; transition: background .15s; flex: none; }
   .toggle input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
@@ -483,24 +484,35 @@ function setTheme(t) {
 $('toggles').innerHTML = PIECES.map(([id, label, sample]) =>
   `<label class="toggle"><span>${esc(label)}<small>${esc(sample)}</small></span><input type="checkbox" data-piece="${id}"></label>`).join('')
 // Alerts live on the server (one announcer however many pages are open).
+// [id, label, sample, sound-name key]: a row with a sound key also gets a sound picker.
 const ALERTS = [
+  ['doneSound', 'Chime when a session finishes', 'a macOS system sound', 'doneSoundName'],
   ['doneSpeak', 'Speak when a session finishes', '“web shop is done”'],
   ['doneNotify', 'Notify when a session finishes', 'macOS notification'],
+  ['needSound', 'Chime when a session needs you', 'a macOS system sound', 'needSoundName'],
   ['needSpeak', 'Speak when a session needs you', '“web shop needs you”'],
   ['needNotify', 'Notify when a session needs you', 'macOS notification'],
 ]
-$('alertToggles').innerHTML = ALERTS.map(([id, label, sample]) =>
-  `<label class="toggle"><span>${esc(label)}<small>${esc(sample)}</small></span><input type="checkbox" data-alert="${id}"></label>`).join('')
+// Sound rows are a div, not a label: a label would hand clicks on its picker to the switch.
+$('alertToggles').innerHTML = ALERTS.map(([id, label, sample, soundKey]) => soundKey
+  ? `<div class="toggle"><label for="al-${id}"><span>${esc(label)}<small>${esc(sample)}</small></span></label><select class="sound" data-sound="${soundKey}" title="Sound (plays when chosen)"></select><input type="checkbox" id="al-${id}" data-alert="${id}"></div>`
+  : `<label class="toggle"><span>${esc(label)}<small>${esc(sample)}</small></span><input type="checkbox" data-alert="${id}"></label>`).join('')
 const alertsApi = body => fetch('api/alerts', body === undefined ? { cache: 'no-store' }
   : { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Sessions': '1' }, body: JSON.stringify(body) }).then(r => r.json())
 async function loadAlerts() {
   try {
     const on = await alertsApi()
     document.querySelectorAll('[data-alert]').forEach(i => { i.checked = !!on[i.dataset.alert] })
+    document.querySelectorAll('[data-sound]').forEach(s => {
+      s.innerHTML = (on.sounds || []).map(n => `<option ${n === on[s.dataset.sound] ? 'selected' : ''}>${esc(n)}</option>`).join('')
+    })
   } catch {}
 }
 $('alertToggles').addEventListener('change', e => {
-  alertsApi({ [e.target.dataset.alert]: e.target.checked }).catch(() => toast('Cannot reach the local server'))
+  const t = e.target
+  // Choosing a sound saves it and plays it once.
+  const body = t.dataset.sound ? { [t.dataset.sound]: t.value } : { [t.dataset.alert]: t.checked }
+  alertsApi(body).then(() => t.dataset.sound && alertsApi({ preview: t.value })).catch(() => toast('Cannot reach the local server'))
 })
 document.querySelector('.stest').addEventListener('click', e => {
   const b = e.target.closest('[data-test]')
