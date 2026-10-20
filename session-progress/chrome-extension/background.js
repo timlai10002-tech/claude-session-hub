@@ -59,17 +59,25 @@ async function notifyChanges(rows) {
   if (!last) return
   const on = await settings()
   for (const r of rows) {
+    const who = label(r)
     const before = last[r.sessionId]
     if (!before) continue
     const newWait = r.status === 'waiting' && (before.status !== 'waiting' || before.since !== r.statusSince)
     if (newWait && on.need) {
       const p = r.pending
       const ask = p ? (p.kind === 'question' ? p.detail : p.kind === 'plan' ? 'Approve the plan?' : `Allow ${p.tool}? ${p.detail || ''}`) : (r.waitingFor || 'Waiting for you')
-      show(`need|${r.pid}|${r.app}`, `⚠ ${r.name} needs you`, ask, true)
+      show(`need|${r.pid}|${r.app}`, `⚠ ${who} needs you`, ask, true)
     } else if (before.status === 'busy' && r.status === 'idle' && on.done) {
-      show(`done|${r.pid}|${r.app}`, `✓ ${r.name} finished`, r.lastReply || r.title || r.cwd, false)
+      show(`done|${r.pid}|${r.app}`, `✓ ${who} finished`, r.lastReply || r.title || r.cwd, false)
     }
   }
+}
+
+// The project folder and what the session is about; names like web-shop-c0 mean nothing to anyone.
+function label(r) {
+  const project = (r.cwd || '').replace(/\/+$/, '').split('/').pop().replace(/^~$/, '') || 'home'
+  const topic = String(r.title || r.lastPrompt || '').split(/\s+/).join(' ').trim()
+  return topic ? `${project} · ${topic.length > 40 ? topic.slice(0, 40) + '…' : topic}` : project
 }
 
 function show(id, title, message, sticky) {

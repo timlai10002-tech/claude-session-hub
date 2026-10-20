@@ -117,22 +117,39 @@ def play(name):
         subprocess.run(["afplay", os.path.join(SOUND_DIR, f"{name}.aiff")], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
 
 
-def alert(kind, name, detail):
+def who(r):
+    """What to call a session out loud: its project folder and what it is about (the
+    session title, or its last prompt), since nobody remembers names like web-shop-c0."""
+    project = os.path.basename((r.get("cwd") or "").rstrip("/")).strip("~") or "home"
+    topic = " ".join(str(r.get("title") or r.get("lastPrompt") or "").split())
+    return project, (topic[:40] + "…") if len(topic) > 40 else topic
+
+
+def has_cjk(text):
+    return any("\u3400" <= ch <= "\u9fff" or "\uf900" <= ch <= "\ufaff" for ch in text)
+
+
+def alert(kind, project, topic, detail):
     """Speak and/or notify one event, as the settings say. Text goes as arguments, never code."""
     on = alert_settings()
-    title = f"✓ {name} finished" if kind == "done" else f"⚠ {name} needs you"
+    head = f"{project} · {topic}" if topic else project
+    title = f"✓ {head} finished" if kind == "done" else f"⚠ {head} needs you"
     if on[f"{kind}Notify"]:
         script = ["-e", "on run argv", "-e", "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run"]
         subprocess.Popen(["osascript", *script, title, " ".join(str(detail or "").split())[:180] or " "],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     # The chime first, then the voice, one after the other, off the watcher's thread.
+    # A topic in Chinese is read by the Mandarin voice, in Chinese; otherwise the default voice.
     def sound_then_voice():
         if on[f"{kind}Sound"]:
             play(on[f"{kind}SoundName"])
         if on[f"{kind}Speak"]:
-            spoken = name.replace("-", " ")
-            subprocess.run(["say", f"{spoken} is done" if kind == "done" else f"{spoken} needs you"],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+            spoken = " ".join(x for x in (project.replace("-", " ").replace("_", " "), topic.rstrip("…")) if x)
+            if has_cjk(spoken):
+                say = ["say", "-v", "Meijia", f"{spoken}，完成了" if kind == "done" else f"{spoken}，需要你"]
+            else:
+                say = ["say", f"{spoken} is done" if kind == "done" else f"{spoken} needs you"]
+            subprocess.run(say, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
     threading.Thread(target=sound_then_voice, daemon=True).start()
 
 
@@ -145,11 +162,11 @@ def watch_step(last, rows, alert=alert):
         if not before:
             continue
         if before[0] == "busy" and r["status"] == "idle":
-            alert("done", r["name"], r.get("lastReply") or r.get("title"))
+            alert("done", *who(r), r.get("lastReply") or r.get("title"))
         elif r["status"] == "waiting" and (before[0] != "waiting" or before[1] != r["statusSince"]):
             p = r.get("pending") or {}
             ask = p.get("detail") if p.get("kind") == "question" else (f"Allow {p['tool']}? {p.get('detail', '')}" if p else r.get("waitingFor"))
-            alert("need", r["name"], ask)
+            alert("need", *who(r), ask)
     return now
 
 
@@ -272,7 +289,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, b'{"ok":true}')
         if body.get("test") in ("done", "need"):
             kind = body["test"]
-            alert(kind, "test-session", "This is how it will look." if kind == "done" else "Allow Bash? npm test")
+            alert(kind, "web-shop", "Fix the checkout button", "This is how it will look." if kind == "done" else "Allow Bash? npm test")
             return self.send(200, b'{"ok":true}')
         on = alert_settings()
         on.update({k: bool(v) for k, v in body.items() if k in ALERT_DEFAULTS})
